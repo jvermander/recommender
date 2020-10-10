@@ -14,38 +14,140 @@ from pyspark.ml.recommendation import ALS, ALSModel
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder, CrossValidatorModel
 
 from sklearn.model_selection import GridSearchCV, cross_val_score, KFold, StratifiedKFold, RandomizedSearchCV
+from sklearn.neighbors import NearestNeighbors
 
 import csv
 import time
 import os
 import glob
 
-os.environ["PYSPARK_PYTHON"]="/usr/bin/python3.5"
-ps = SparkSession.builder.master("local[4]").appName('Recommender').getOrCreate()
 
-TRAIN_DIR = 'data/train'
-RATINGS_CSV = 'data/out5.csv'
+TRAIN_DIR = 'data/train_x'
 BOOKS_CSV = 'data/lookup.csv'
 
 def main():
-  train_model('models/ALS')
 
-def train_model( path, new_csv=None ):
+  # data = pd.read_csv('data/out.csv')
+
+  # by_item = data.groupby('BID')['UID'].nunique()
+  # by_item = by_item[by_item >= 5]
+  # print(by_item)
+
+  # data = data[data.BID.isin(by_item.index)]
+  # print(data.nunique())
+
+  # data = lower_bound_ratings(data, 10, 'data/b5u10.csv')
+
+  # print(data.nunique())
+
+  # print(data)
+
+
   files = glob.glob(TRAIN_DIR + '/*.csv')
   df = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
+  # cross_val(df)
+  # model, mu = train_model('models/ALS', df.copy())
+  model, mu = load_model('models/ALS')
+  predict(model, df, mu)
 
+def train_model( path, df ):
+  os.environ["PYSPARK_PYTHON"]="/usr/bin/python3.5"
+  ps = SparkSession.builder.master("local[4]").appName('Recommender').getOrCreate()
+  
+  df, mu = normalize_by_item(df)
   df = ps.createDataFrame(df)
   als = ALS(userCol='UID', itemCol='BID', ratingCol='Score', coldStartStrategy='drop',
-            maxIter=15, rank=10, regParam=0.5)
+            maxIter=15, rank=20, regParam=0.3)
   model = als.fit(df)
   model.write().overwrite().save(path)
+  np.save(path + '/mu_item.npy', mu)
+  # np.save(path + '/mu_user.npy', mu_u)
+  return model, mu
 
-def predict():
-  pass
+def load_model( path ):
+  os.environ["PYSPARK_PYTHON"]="/usr/bin/python3.5"
+  ps = SparkSession.builder.master("local[4]").appName('Recommender').getOrCreate()
+
+  model = ALSModel.load(path)
+  mu_i = np.load(path + '/mu_item.npy')
+  # mu_u = np.load(path + '/mu_user.npy')
+
+  return model, mu_i#, mu_u
+
+def predict( model, df, mu ):
+  user = df.UID.nunique()-1
+  print(user)
+  lookup = pd.read_csv(BOOKS_CSV, sep=';', error_bad_lines=False)
+  
+  item_counts = df.groupby('BID').nunique()
+  item_counts = item_counts[item_counts.UID >= 1]
+  item_counts = item_counts.index
+  print(item_counts)
+
+  print(df)
+  user_df = df[df.UID == user].merge(lookup, on='BID', how='left')
+  user_df = user_df.loc[:, ['BID', 'ISBN', 'Book-Title', 'Book-Author', 'Score']]
+  print(user_df)
+
+  item_matrix = model.itemFactors.toPandas()
+  item_features = np.stack(item_matrix.features)
+
+  
+  user_matrix = model.userFactors.toPandas()
+  user_features = np.stack(user_matrix.features)
+
+
+  user_vec = user_matrix[user_matrix.id == user].features
+  user_vec = np.stack(user_vec)
+
+  print("Results:")
+  csr = get_csr(df)
+
+  nn = NearestNeighbors(n_neighbors=3)
+  nn.fit(csr)
+  idx = nn.kneighbors(csr[user, :], return_distance=False)[0]
+
+  print(idx)
+
+  sim = df[df.UID.isin(idx)].merge(lookup, on='BID', how='left')
+  sim = sim.loc[:, ['UID', 'BID', 'ISBN', 'Book-Title', 'Book-Author', 'Score']]
+  print(sim.sort_values('UID'))
+
+  # What is the prediction for each BID on the similarity list? Sort, then recommend
+
+
+  p = np.dot(item_features, user_vec.reshape(-1))
+
+  p = pd.DataFrame(p)
+  p.columns = ['Prediction']
+  p = pd.concat([item_matrix, p], axis=1)
+  p.sort_values('Prediction', axis=0, ascending=False, inplace=True)
+
+
+  # p = p[p.id.isin(item_counts)]
+  # p = p.iloc[:20, :]
+  p.reset_index(drop=True, inplace=True)
+  # p.Prediction += mu_u[user]
+  # p.Prediction += mu_i[item_matrix.id]
+  print(p)
+
+  p.rename(columns={'id': 'BID'}, inplace=True)
+  p = p.merge(lookup, on='BID', how='left')
+  p = p.loc[:, ['BID', 'ISBN', 'Book-Title', 'Book-Author', 'Prediction']]
+  p.Prediction += mu[p.BID]
+  p.sort_values('Prediction', axis=0, ascending=False, inplace=True)
+  p.reset_index(drop=True, inplace=True)
+
+
+  print(p.iloc[:10, :])
+  print(p[p.BID == 2809])
+  print(p[p.BID.isin(user_df.BID)])
 
 # Tunes hyperparameters and evaluates the model building process
 def cross_val( df ):
-  global ps
+  df, mu_i = normalize_by_item(df)
+  os.environ["PYSPARK_PYTHON"]="/usr/bin/python3.5"
+  ps = SparkSession.builder.master("local[4]").appName('Recommender').getOrCreate()
   x = ps.createDataFrame(df)
   outer_train, outer_test = x.randomSplit([0.95, 0.05])
   als = ALS(userCol='UID', 
@@ -53,8 +155,8 @@ def cross_val( df ):
             ratingCol='Score', 
             coldStartStrategy='drop',
             maxIter=15)
-  grid = ParamGridBuilder().addGrid(als.rank, [10, 20, 50],) \
-                           .addGrid(als.regParam, [0.3, 0.5, 1]).build()
+  grid = ParamGridBuilder().addGrid(als.rank, [20],) \
+                           .addGrid(als.regParam, [0.3]).build()
   evaluator = RegressionEvaluator(metricName='rmse', 
                                  labelCol='Score', 
                                  predictionCol='prediction')
@@ -87,10 +189,8 @@ def cross_val( df ):
   return predictions
 
 # Assemble a sparse matrix from a dataframe
-def get_csr( ratings=None ):
+def get_csr( ratings ):
   lookup = pd.read_csv(BOOKS_CSV, sep=';', error_bad_lines=False)
-  if(ratings is None):
-    ratings = pd.read_csv(RATINGS_CSV, sep=',')
 
   n_users = ratings['UID'].nunique()
   n_books = lookup['BID'].nunique()
@@ -167,6 +267,9 @@ def lower_bound_ratings( ratings, k, path ):
   ratings.UID = ratings.UID.map(unique) # mapping for reindexing
 
   ratings.to_csv(path, sep=',', quoting=csv.QUOTE_NONNUMERIC, index=False)
+  return ratings
+
+
 
 
 main()
