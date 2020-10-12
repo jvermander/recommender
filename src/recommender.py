@@ -15,6 +15,7 @@ from pyspark.ml.tuning import CrossValidator, ParamGridBuilder, CrossValidatorMo
 
 from sklearn.model_selection import GridSearchCV, cross_val_score, KFold, StratifiedKFold, RandomizedSearchCV
 from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import cosine_similarity
 
 import csv
 import time
@@ -22,7 +23,7 @@ import os
 import glob
 
 
-TRAIN_DIR = 'data/train_x'
+TRAIN_DIR = 'data/train10'
 BOOKS_CSV = 'data/lookup.csv'
 
 def main():
@@ -42,11 +43,12 @@ def main():
 
   # print(data)
 
-
   files = glob.glob(TRAIN_DIR + '/*.csv')
   df = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
+  df.sort_values('UID', inplace=True)
+  df.reset_index(drop=True, inplace=True)
   # cross_val(df.copy())
-  train_model('models/ALS', df.copy(), offset=True)
+  train_model('models/ALS', df.copy(), offset=False)
   model, mu_i, mu_u = load_model('models/ALS')
   recommend(model, df, mu_i, mu_u)
 
@@ -60,7 +62,7 @@ def train_model( path, df, offset ):
     df, mu_u = normalize_by_user(df)
   df = ps.createDataFrame(df)
   als = ALS(userCol='UID', itemCol='BID', ratingCol='Score', coldStartStrategy='drop',
-            maxIter=15, rank=30, regParam=0.3)
+            maxIter=15, rank=20, regParam=0.3)
   model = als.fit(df)
   model.write().overwrite().save(path)
   np.save(path + '/mu_item.npy', mu_i)
@@ -90,15 +92,49 @@ def get_user_ratings( user, ratings ):
   user_ratings = lookup(ratings[ratings.UID == user])
   return user_ratings
 
-def get_similar_user_ratings( user, ratings, n=5 ):
-  csr = get_csr(ratings)
-  nn = NearestNeighbors(n_neighbors=n+1, algorithm='brute', metric='manhattan')
-  nn.fit(csr)
-  ids = nn.kneighbors(csr[user, :], return_distance=False)[0][1:]
-  print(ids)
-  sim = lookup(ratings[ratings.UID.isin(ids)])
+def get_similar_users( user, ratings, n=5 ):
+  liked = ratings.Score >= 4.0
+  # ratings.loc[liked, 'Score'] = 1
+  ratings.loc[~liked, 'Score'] = 0
+  
 
-  return sim
+  csr = get_csr(ratings)
+  similarities = pd.Series(cosine_similarity(csr, csr[user, :]).reshape(-1))
+  similarities.sort_values(ascending=False, inplace=True)
+  ids = similarities.index[1:1+n]
+
+  return ids
+  
+def get_similar_items( user_ratings, ratings, n_user='all', n_similar=5 ):
+  user_ratings.sort_values('Score', ascending=False, inplace=True)
+  if(n_user == 'all'):
+    top_ratings = user_ratings
+  else:
+    top_ratings = user_ratings[:n_user]
+  csr = get_csr(ratings).transpose()
+  similarities = pd.DataFrame(cosine_similarity(csr, csr[top_ratings.BID]))
+
+  ids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
+  ids = pd.DataFrame(ids.flatten())
+  ids.columns = ['BID']
+  ids = ids[~ids.BID.isin(user_ratings.BID)]
+  items = lookup(ids, ['BID', 'ISBN', 'Book-Title', 'Book-Author'])
+
+  counts = pd.DataFrame(items.groupby('BID').count().iloc[:, 0])
+  counts.columns = ['Count']
+  # items = items.merge(counts, on='BID', how='left')
+  items.drop_duplicates('BID', inplace=True)
+  # items.sort_values('Count', inplace=True, ascending=False)
+
+  return items, counts
+
+def get_similar_user_ratings( user, ratings, n=5 ):
+  ids = get_similar_users(user, ratings, n)
+  sim = lookup(ratings[ratings.UID.isin(ids)])
+  counts = pd.DataFrame(sim.groupby('BID').UID.count())
+  counts.columns = ['Count']
+
+  return sim, counts
 
 def predict( user_vector, items_pd, mu_i, user_offset=0 ):
   items_np = np.stack(items_pd.features)
@@ -113,30 +149,52 @@ def predict( user_vector, items_pd, mu_i, user_offset=0 ):
   p.reset_index(drop=True, inplace=True)
   return p
 
-# todo: sophisticate user-user similarity, implement item-item similarity
+
+
+
+# todo: featurize author, clean-up
+
 def recommend( model, ratings, mu_i, mu_u=None ):
-  user = ratings.UID.nunique()-3
+  user = ratings.UID.nunique()-1
+  # user = 7756
   lookup = pd.read_csv(BOOKS_CSV, sep=';', error_bad_lines=False)
 
   print(user)
-  user_ratings = get_user_ratings(user, ratings)
+  user_ratings = get_user_ratings(user, ratings.copy())
   print(user_ratings)
 
-  similar_ratings = get_similar_user_ratings(user, ratings, 5)
-  print(similar_ratings)
+
+  similar_items, item_counts = get_similar_items(user_ratings, ratings.copy(), 'all', 10)
+
+  similar_users = get_similar_users(user, ratings)
+  similar_ratings, counts = get_similar_user_ratings(user, ratings.copy(), 10)
 
   items_pd = model.itemFactors.toPandas()
   users_pd = model.userFactors.toPandas()
   user_vec = np.stack(users_pd[users_pd.id == user].features)
  
+  # items
+  similar_pd = items_pd[items_pd.id.isin(similar_items.BID)]
+  user_offset = 0
+  if(mu_u is not None):
+    user_offset = mu_u[user]
+  similar_items_predictions = predict(user_vec, similar_pd, mu_i, user_offset)
+  similar_items_predictions = similar_items_predictions.merge(item_counts, on='BID', how='left')
+  similar_items_predictions.sort_values(['Count', 'Predicted'], inplace=True, ascending=False)
+  print(similar_items_predictions[:30])
 
+  # users
   similar_pd = items_pd[items_pd.id.isin(similar_ratings.BID)]
   user_offset = 0
   if(mu_u is not None):
     user_offset = mu_u[user]
   similar_predictions = predict(user_vec, similar_pd, mu_i, user_offset)
-  print(similar_predictions[~similar_predictions.BID.isin(user_ratings.BID)])
+  similar_predictions = similar_predictions.merge(counts, on='BID', how='left')
+  similar_predictions.sort_values(['Count', 'Predicted'], inplace=True, ascending=False)
+  print(similar_predictions[~similar_predictions.BID.isin(user_ratings.BID)][:30])
 
+  all = similar_items_predictions.merge(similar_predictions, on='BID')
+  print(all)
   p = predict(user_vec, items_pd, mu_i, user_offset)
   # print(p.iloc[:10, :])
   # print(p[p.BID == 2809])
