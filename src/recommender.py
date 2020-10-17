@@ -13,6 +13,8 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import cosine_similarity
 
 import pickle
+import difflib
+import Levenshtein as lev
 
 import csv
 import time
@@ -23,35 +25,43 @@ TRAIN_DIR = 'data/train10'
 BOOKS_CSV = 'data/booksdataset.csv'
 AUTHS_CSV = 'data/authsdataset.csv'
 
+#6590 - 10
+
 user = 6589
 def main():
   # files = glob.glob(TRAIN_DIR + '/*.csv')
   # df = pd.concat((pd.read_csv(f) for f in files), ignore_index=True)
   # df.sort_values('UID', inplace=True)
   # df.reset_index(drop=True, inplace=True)
-  
-  # df = pd.DataFrame(df.groupby(['UID', 'AID']).Score.mean())
-  # df.reset_index(inplace=True)
-  # df.rename(columns={'AID':'BID'}, inplace=True)
-  # df.to_csv(TRAIN_DIR + 'authors10.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
+
+  # df.to_csv(TRAIN_DIR + '/books10.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
+
+
+  # lookup = pd.read_csv(BOOKS_CSV, sep=';')
+  # ratings = pd.read_csv(TRAIN_DIR + '/books10.csv')
+  # ratings = ratings.merge(lookup, on='BID', how='left')
+
+  # ratings = pd.DataFrame(ratings.groupby(['UID', 'AID']).Score.mean())
+  # ratings.reset_index(inplace=True)
+  # ratings.to_csv(TRAIN_DIR + '/authors10.csv', index=False, quoting=csv.QUOTE_NONNUMERIC)
 
   books = pd.read_csv(TRAIN_DIR + '/books10.csv')
   auths = pd.read_csv(TRAIN_DIR + '/authors10.csv')
 
   path = 'models/impALS'
-  # # train_model(books, auths, path)
+  # train_model(books, auths, path)
   book_model, auth_model = load_model(path)
   recommend(books, auths, book_model, auth_model)
 
-def train_model( books, authors, path, f=200, l=0.3 ):
 
 
-  model = implicit.als.AlternatingLeastSquares(factors=f, regularization=l, num_threads=4)
+def train_model( books, authors, path, f1=200, f2=200, l1=1, l2=1 ):
+  model = implicit.als.AlternatingLeastSquares(iterations=5, factors=f1, regularization=l1, num_threads=4, calculate_training_loss=True)
   csr = books_to_csr(books)
   model.fit(csr.transpose())
   pickle.dump(model, open(path + '/impALSbooks.sav', 'wb'))
 
-  model = implicit.als.AlternatingLeastSquares(factors=f, regularization=l, num_threads=4)
+  model = implicit.als.AlternatingLeastSquares(iterations=5, factors=f2, regularization=l2, num_threads=4, calculate_training_loss=True)
   csr = authors_to_csr(authors)
   model.fit(csr.transpose())
   pickle.dump(model, open(path + '/impALSauthors.sav', 'wb'))
@@ -62,40 +72,133 @@ def load_model( path ):
   
   return book_model, auth_model
 
-# todo: finish author recommendations, consolidate data, clean-up
+# todo: establish database, clean-up
+ # Authors
+  # -) Authors already liked
+  # 1) Users that like author X also like ... (item-item)
+  # 2) Users like you also like author Y ... (user-user)
+  # 3) Predicted 
+
+  # Books
+  # -) Books by authors already liked
+  # 1) Users that like book X also like ... (item-item)
+  # 2) Users like you also like book Y ... (user-user)
+  # 3) Predicted
+
+  # 1) What similar users are reading
+  # 2) Authors you may like
+  # 3) Top authors
+
+  # Books
+
+  # 1) What other users are reading
+  # 2) Authors you may like
 
 def recommend( books, auths, book_model, auth_model ):
   global user
 
-  print('UID ', user)
+  print("User %d's ratings: " % user)
   user_ratings = get_user_ratings(user, books)
   print(user_ratings)
 
-  # 1) user-user similarity
-  # 2) item-item similarity
-  # 3) rank by book score, author score, frequency
+  candidate_authors = pd.Series(name='AID')
+  candidate_authors = candidate_authors.append(recommend_authors_by_item(user, auth_model, auths))
+  candidate_authors = candidate_authors.append(get_similar_authors(user, auths))
+  candidate_authors = candidate_authors.append(recommend_authors_by_user(user, auth_model, auths))
+
+  author_ranking = rank_authors(user, auth_model, auths, candidate_authors)
 
   candidates = pd.Series(name='BID')
-  candidates = candidates.append(recommend_by_book(user, book_model, books))
-  candidates = candidates.append(recommend_by_user(user, book_model, books))
+  candidates = candidates.append(recommend_books_by_author(author_ranking))
+  candidates = candidates.append(recommend_books_by_item(user, book_model, books))
+  candidates = candidates.append(get_similar_books(user_ratings, books))
+  candidates = candidates.append(recommend_books_by_user(user, book_model, books))
+
   candidates = remove_already_read(user_ratings, candidates)
 
   book_scores = score_by_book(user, book_model, books, candidates)
   aids = lookup_books(candidates).AID
   auth_scores = score_by_author(user, auth_model, auths, aids)
 
-  ranking = rank_books(book_scores, auth_scores)
-  ranking.sort_values(['Count', 'Overall'], ascending=False, inplace=True)
-  # ranking = filter_ranking(ranking)
+  book_ranking = rank_books(book_scores, auth_scores)
+  
+  recommended_books = book_ranking[:5]
+  recommended_authors = author_ranking[:5]
+  recommended_authors_books = recommend_books_for_each_author(recommended_authors, book_model, books)
 
-  print(ranking[:30])
+  print(recommended_books)
+  print(recommended_authors)
+  print(recommended_authors_books)
 
 
-  aids = recommend_by_author(user, auth_model, auths).sort_values('AuthScore', ascending=False)
-  author_ranking = lookup_authors(aids)
-  author_ranking.drop_duplicates('AID', inplace=True)
-  print(author_ranking)
+def recommend_books_for_each_author(recommended_authors, model, ratings, n=5):
+  recommended_authors_books = []
+  for i in range(recommended_authors.shape[0]):
+    aid = pd.Series([recommended_authors.loc[i, 'AID']], name='AID')
+    temp = model.rank_items(user, books_to_csr(ratings), recommend_books_by_author(aid))
+    temp = pd.DataFrame(temp, columns=['BID', 'BookScore'])[:5]
+    temp = lookup_books(temp)
+    recommended_authors_books.append(temp)
+  return recommended_authors_books
 
+def recommend_authors_by_item( user, model, ratings, thres=4.0, n=5 ):
+  user_ratings = ratings[(ratings.UID == user)]
+  user_authors = user_ratings[user_ratings.Score >= thres].AID
+  user_authors.reset_index(drop=True, inplace=True)
+
+  result = []
+  csr = authors_to_csr(ratings)
+  for i in range(user_authors.shape[0]):
+    result += (model.similar_items(user_authors[i], N=n, react_users=csr.transpose()))
+
+  recommended_authors = [x for x,_ in result]
+  recommended_authors = pd.Series(recommended_authors, name='AID')
+
+  return recommended_authors
+
+def recommend_authors_by_user( user, model, ratings, thres=4.0, n=5 ):
+  uids = model.similar_users(user, N=n)
+  uids = [x for x,_ in uids]
+
+  recommended_authors = ratings[ratings.UID.isin(uids)]
+  recommended_authors = recommended_authors[recommended_authors.Score >= thres].AID
+  recommended_authors.reset_index(drop=True, inplace=True)
+
+  return recommended_authors
+
+def rank_authors( user, model, ratings, ids, thres=0.02 ):
+  counts = pd.DataFrame(ids.value_counts())
+  counts.reset_index(inplace=True)
+  counts.columns = ['AID', 'Count']
+  author_scores = score_by_author(user, model, ratings, counts.AID)
+  authors = author_scores.merge(counts, on='AID', how='left')
+  authors = lookup_authors(authors)
+  authors = authors[authors.AuthScore >= thres]
+  authors.sort_values(['Count','AuthScore'], inplace=True, ascending=False)
+  authors.reset_index(drop=True, inplace=True)
+
+  return authors
+
+def get_similar_books( user_ratings, ratings, thres=4.0, n_similar=5 ):
+  top_ratings = user_ratings[user_ratings.Score >= thres]
+  csr = books_to_csr(ratings).transpose()
+  similarities = pd.DataFrame(cosine_similarity(csr, csr[top_ratings.BID]))
+
+  ids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
+  ids = pd.Series(ids.flatten(), name='BID')
+
+  return ids
+
+def get_similar_authors( user, ratings, thres=4.0, n_similar=5 ):
+  user_ratings = ratings[ratings.UID == user]
+  top_ratings = user_ratings[user_ratings.Score >= thres]
+  csr = authors_to_csr(ratings).transpose()
+  similarities = pd.DataFrame(cosine_similarity(csr, csr[top_ratings.AID]))
+
+  ids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
+  ids = pd.Series(ids.flatten(), name='AID')
+
+  return ids
 
 def lookup_books( bids ):
   lookup = pd.read_csv(BOOKS_CSV, sep=';', error_bad_lines=False)
@@ -104,6 +207,12 @@ def lookup_books( bids ):
   summary.drop(inplace=True, 
     columns=['Year-Of-Publication', 'Publisher', 'Image-URL-S', 'Image-URL-M', 'Image-URL-L'])
   return summary
+
+def recommend_books_by_author( aids ):
+  lookup = pd.read_csv(BOOKS_CSV, sep=';', error_bad_lines=False)
+  aids = pd.DataFrame(aids)
+  summary = aids.merge(lookup, on='AID', how='left')
+  return summary.BID
 
 def lookup_authors( aids ):
   lookup = pd.read_csv(AUTHS_CSV, sep=',', error_bad_lines=False)
@@ -115,7 +224,7 @@ def get_user_ratings( user, ratings ):
   user_ratings = lookup_books(ratings[ratings.UID == user])
   return user_ratings
 
-def recommend_by_book( user, model, ratings, thres=4.0, n=5 ):
+def recommend_books_by_item( user, model, ratings, thres=4.0, n=5 ):
   bids = ratings[(ratings.UID == user)]
   bids = bids[bids.Score >= thres].BID
   bids.reset_index(drop=True, inplace=True)
@@ -123,13 +232,13 @@ def recommend_by_book( user, model, ratings, thres=4.0, n=5 ):
   result = []
   csr = books_to_csr(ratings)
   for i in range(bids.shape[0]):
-    result += (model.similar_items(bids[i], N=n, react_users=csr.transpose()))
+    result = (model.similar_items(bids[i], N=n, react_users=csr.transpose()))
   result = [x for x,_ in result]
   result = pd.Series(result)
   result.name = 'BID'
-  return result
+  return 
 
-def recommend_by_user( user, model, ratings, thres=4.0, n=5 ):
+def recommend_books_by_user( user, model, ratings, thres=4.0, n=5 ):
   ids_tuples = model.similar_users(user, n)
   ids = [x for x, _ in ids_tuples]
 
@@ -138,22 +247,6 @@ def recommend_by_user( user, model, ratings, thres=4.0, n=5 ):
   bids.reset_index(drop=True, inplace=True)
 
   return bids
-
-#todo
-def recommend_by_author( user, model, ratings, thres=4.0, n=5 ):
-  aids = ratings[(ratings.UID == user)]
-  aids = aids[aids.Score >= thres].AID
-  aids.reset_index(drop=True, inplace=True)
-
-  result = []
-  csr = authors_to_csr(ratings)
-  for i in range(aids.shape[0]):
-    result += (model.similar_items(aids[i], N=n, react_users=csr.transpose()))
-  # result = [x for x,_ in result]
-  result = pd.DataFrame(result)
-  result.columns = ['AID', 'AuthScore']
-  return result
-
 
 def remove_already_read( user_ratings, bids ):
   bids = bids[~bids.isin(user_ratings.BID)]
@@ -183,54 +276,14 @@ def rank_books( book_scores, auth_scores ):
   ranking = ranking.merge(auth_scores, on='AID', how='left')
   ranking = ranking.merge(count, on='BID', how='left')
   
-  ranking['Overall'] = ranking['BookScore'] + 1.2 * ranking['AuthScore']
+  ranking['Overall'] = (0.05 * ranking['Count'] + ranking['BookScore'] + 0.05 * ranking['AuthScore']) 
   ranking = ranking[['BID', 'AID', 'ISBN', 'Book-Title', 'Book-Author', \
                      'Count', 'BookScore', 'AuthScore', 'Overall']]
+  ranking.sort_values(['Count', 'BookScore'], ascending=False, inplace=True)
+  ranking.reset_index(drop=True, inplace=True)
   return ranking
 
-# def filter_ranking( ranking ):
-#   ranking = ranking[ranking.Overall >= 0.03]
 
-
-def get_similar_users( user, ratings, n=5 ):
-  liked = ratings.Score >= 4.0
-  # ratings.loc[liked, 'Score'] = 1
-  ratings.loc[~liked, 'Score'] = 0
-
-  csr = get_csr(ratings)
-  similarities = pd.Series(cosine_similarity(csr, csr[user, :]).reshape(-1))
-  similarities.sort_values(ascending=False, inplace=True)
-  ids = similarities.index[1:1+n]
-
-  return ids
-
-def get_similar_user_ratings( user, ratings, n=5 ):
-  ids = get_similar_users(user, ratings, n)
-  sim = lookup_books(ratings[ratings.UID.isin(ids)])
-
-  return sim.BID
-
-
-
-def get_similar_items( user_ratings, ratings, thres=4.0, n_similar=5 ):
-  # user_ratings.sort_values('Score', ascending=False, inplace=True)
-  top_ratings = user_ratings[user_ratings.Score >= thres]
-  csr = get_csr(ratings).transpose()
-  similarities = pd.DataFrame(cosine_similarity(csr, csr[top_ratings.BID]))
-
-  ids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
-  ids = pd.DataFrame(ids.flatten())
-  ids.columns = ['BID']
-  ids = ids[~ids.BID.isin(user_ratings.BID)]
-  items = lookup_books(ids, ['BID', 'ISBN', 'Book-Title', 'Book-Author'])
-
-  counts = pd.DataFrame(items.groupby('BID').count().iloc[:, 0])
-  counts.columns = ['Count']
-  # items = items.merge(counts, on='BID', how='left')
-  items.drop_duplicates('BID', inplace=True)
-  # items.sort_values('Count', inplace=True, ascending=False)
-
-  return items.BID
 
 # Assemble a sparse matrix from a dataframe
 def books_to_csr( ratings ):
@@ -326,7 +379,5 @@ def normalize_by_user( df ):
 
   df.Score -= mu[df.UID]
   return df, mu
-
-
 
 main()
