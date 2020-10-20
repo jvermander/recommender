@@ -1,0 +1,50 @@
+-- DROP TABLE IF EXISTS authorratings;
+-- DROP TABLE IF EXISTS bookratings;
+-- DROP TABLE IF EXISTS books;
+-- DROP TABLE IF EXISTS authors;
+-- DROP TABLE IF EXISTS users;
+
+CREATE TABLE users(
+	UID int UNSIGNED NOT NULL AUTO_INCREMENT,
+	usr varchar(15),
+	pwd varchar(25),
+	PRIMARY KEY (UID)
+);
+
+CREATE TABLE authors(
+	AID int UNSIGNED NOT NULL UNIQUE AUTO_INCREMENT,
+	AuthorName varchar(64) NOT NULL,
+	PRIMARY KEY (AID)
+);
+
+CREATE TABLE books(
+	BID int UNSIGNED NOT NULL AUTO_INCREMENT,
+	AID int UNSIGNED NOT NULL,
+	ISBN varchar(10) UNIQUE NOT NULL,
+	Title varchar(256) NOT NULL,
+	YearPublished int(4),
+	Publisher varchar(64),
+	ImageURLS varchar(512),
+	ImageURLM varchar(512),
+	ImageURLL varchar(512),
+	PRIMARY KEY (BID),
+	FOREIGN KEY (AID) REFERENCES authors(AID)
+);
+
+CREATE TABLE bookratings(
+	UID int UNSIGNED NOT NULL,
+	BID int UNSIGNED NOT NULL,
+	Score float UNSIGNED NOT NULL,
+	PRIMARY KEY (UID, BID),
+	FOREIGN KEY (UID) REFERENCES users(UID),
+	FOREIGN KEY (BID) REFERENCES books(BID)
+);
+
+CREATE TABLE authorratings(
+	UID int UNSIGNED NOT NULL,
+	AID int UNSIGNED NOT NULL,
+	Score float UNSIGNED NOT NULL,
+	PRIMARY KEY (UID, AID),
+	FOREIGN KEY (UID) REFERENCES users(UID),
+	FOREIGN KEY (AID) REFERENCES authors(AID)
+);
