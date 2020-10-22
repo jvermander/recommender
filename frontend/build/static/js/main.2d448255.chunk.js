@@ -1,0 +1,2 @@
+(this.webpackJsonprecommender=this.webpackJsonprecommender||[]).push([[0],[,,,function(e,n,t){e.exports=t(4)},function(e,n,t){"use strict";t.r(n);var o=t(0),r=t.n(o),a=t(2);function c(e){var n=e.books.map((function(e){return r.a.createElement("li",null,e)}));return r.a.createElement("ul",null,n)}t.n(a).a.render(r.a.createElement(c,{books:["The Republic","Candide","Beyond Good & Evil","Crime & Punishment","Gulag Archipelago"]}),document.getElementById("booklist"))}],[[3,1,2]]]);
+//# sourceMappingURL=main.2d448255.chunk.js.map
