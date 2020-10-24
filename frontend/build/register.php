@@ -26,8 +26,7 @@
       $sql = "INSERT INTO users VALUES($UID, '$usr', SHA('$pwd'))";
       $link->query($sql);
 
-      echo "Registration successful for $UID";
-
+      echo "Registration successful.";
 
     } catch(Exception $e) {
       exit($e->getMessage());
