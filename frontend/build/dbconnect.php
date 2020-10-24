@@ -8,9 +8,6 @@ function dbconnect() {
         $creds = parse_ini_file("../../sql/database.ini");
         $link = mysqli_connect($creds['host'], $creds['usr'], $creds['pwd'], $creds['name']);
     }
-    if($link !== false) {
-        $link->query("SET SQL_MODE = STRICT_ALL_TABLES");
-    }
     return $link;
 }
 ?>

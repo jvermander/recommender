@@ -8,8 +8,9 @@
       exit('Failed to connect to database: ' . mysqli_connect_error());
   }
 
-    $usr = $_POST['usr'];
-    $pwd = $_POST['pwd'];
+    $post = json_decode(file_get_contents('php://input'), true);
+    $usr = $post['usr'];
+    $pwd = $post['pwd'];
 
     $sql = "SELECT * FROM users WHERE usr='$usr'";
 
