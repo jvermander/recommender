@@ -20,12 +20,16 @@ function Recommender() {
 
   return(
     <div id='app' class='container-fluid p-0'>
-      <div id='navbar' class='container-fluid border p-3 '>
-        <Credentials onLogin={onLogin}/>
+      <div id='navbar' class='container-fluid p-3 mt-2 text-right'> <Credentials onLogin={onLogin}/> </div>
+
+      <div class='container-fluid p-4 text-center'>
+        <div class='text-center'>
+          <span class='fancy header'>Need a book to read?</span>
+        </div>
+        <div class='text-center pt-1'><img  height='auto' width='2.5%' src='assets/separator.png'/></div>
+          <span class='fancy subtitle'>Rate books, get recommendations! Here are some popular titles ...</span>
       </div>
 
-
-      <div class='col-*-12'>Most Popular Titles</div>
       <div id='' class='container border'>
         <BookList books={recommendations} />
         {/* <BookList books={recommendations} />
@@ -99,18 +103,18 @@ function BookList(props) {
   const listItems = books.map((book, index) => {
     let temp = 'https://images-na.ssl-images-amazon.com/images/I/41DxTj1cWoL._SX316_BO1,204,203,200_.jpg';
 
-    let margin = '5px';
+    let margin = '0.5em';
     if(index % 2 == 0) {
       temp = 'https://images-na.ssl-images-amazon.com/images/I/51Pli1sEdvL._SX348_BO1,204,203,200_.jpg';
-      margin = '-5px';
+      margin = '-0.5em';
     }
     
     temp = book.ImageURLL == null ? temp : book.ImageURLL;
     console.log(temp)
 
     return (
-    <div class='col-2 border'>
-      <img class='' style={{zIndex: index+1, marginTop: margin, border: '5px solid black', boxShadow: '0 4px 8px 0 rgba(0, 0, 0, 0.5), 0 6px 20px 0 rgba(0, 0, 0, 0.4)'}} height='100%' width='150%' src={temp}/>
+    <div class='col-2 border' style={{zIndex: index+1}}>
+      <img id='bootstrap-overrides' class='book' style={{marginTop: margin}} height='100%' width='150%' src={temp}/>
     </div>
     );
   });
