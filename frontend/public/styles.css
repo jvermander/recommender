@@ -1,0 +1,32 @@
+.book {
+  transition: 125ms linear;
+  border: 0.3em solid black;
+  box-shadow: 0 1.0em 1.5em 0 rgba(0, 0, 0, 0.5), 0 0.5em 2em 0 rgba(0, 0, 0, 0.4);
+}
+.book:hover {
+  transform: translateX(-20%);
+}
+
+#navbar {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.fancy {
+  font-family: fairy;
+  text-shadow: 4px 4px 15px black;
+}
+.header {
+  font-size: 3em;
+}
+.subtitle {
+  font-size: 2em;
+}
+@font-face {
+  font-family: fairy;
+  src: url('assets/fairy.otf');
+}
+#root {
+  background-image: url('assets/bricks.jpg');
+  /* background-repeat: no-repeat; */
+  /* background-attachment: fixed; */
+}
