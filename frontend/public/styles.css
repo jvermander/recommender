@@ -3,8 +3,11 @@
   border: 0.3em solid black;
   box-shadow: 0 1.0em 1.5em 0 rgba(0, 0, 0, 0.5), 0 0.5em 2em 0 rgba(0, 0, 0, 0.4);
 }
-.book:hover {
+.book.left:hover {
   transform: translateX(-20%);
+}
+.book.right:hover {
+  transform: translateX(20%);
 }
 
 #navbar {
@@ -15,15 +18,53 @@
   font-family: fairy;
   text-shadow: 4px 4px 15px black;
 }
+
 .header {
   font-size: 3em;
 }
 .subtitle {
   font-size: 2em;
 }
+.authorname {
+  font-family: fairyb;
+  text-shadow: 20px 20px 30px black;
+  font-size: 5em;
+  line-height: 1em;
+}
+
+.divider {
+  font-family: cruz;
+  font-size: 5em;
+}
+
 @font-face {
   font-family: fairy;
   src: url('assets/fairy.otf');
+}
+
+@font-face {
+  font-family: fairyb;
+  src: url('assets/FairyDustB.ttf')
+}
+
+@font-face {
+  font-family: capitalis;
+  src: url('assets/CapitalisTypOasis.ttf')
+}
+
+@font-face {
+  font-family: mephisto;
+  src: url('assets/Fiolex_Mephisto.ttf')
+}
+
+@font-face {
+  font-family: k22;
+  src: url('assets/K22\ Monastic.ttf')
+}
+
+@font-face {
+  font-family: cruz;
+  src: url('assets/cruz.ttf')
 }
 #root {
   background-image: url('assets/bricks.jpg');

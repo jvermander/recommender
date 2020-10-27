@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
 
-const books = [{Title: "null"}, {Title: "null"}, {Title: "null"}, {Title: "null"}, {Title: "null"}];
+const books = [{Title: "null1"}, {Title: "null2"}, {Title: "null3"}, {Title: "null4"}, {Title: "null5"}];
 
 function Recommender() {
   const [isLogged, setIsLogged] = useState(false);
@@ -84,7 +84,11 @@ function Navbar(props) {
   } else {
       html = <form class='ml-auto'><fieldset><div>Logged In...</div></fieldset></form>
   }
-  return (<div id='navbar' class='navbar sticky-top container-fluid p-3 mt-2 justify-content-right'> {html} </div>);
+  return (
+    <div id='navbar' class='navbar sticky-top container-fluid p-3 mt-2 justify-content-right'>
+      <img height='auto' width='3%' src='assets/logo2.png'></img>
+      {html} 
+    </div>);
 }
 
 function Greeting(props) {
@@ -94,7 +98,7 @@ function Greeting(props) {
   const recommendations = props.recommendations;
 
   const unloggedHeader = 'Need a book to read?';
-  const defaultSubtitle = 'Rate books, get recommendations! Here are some popular titles ...';
+  const defaultSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
   const ratedSubtitle = 'What similar users are currently reading'
 
   const [header, setHeader] = useState(unloggedHeader);
@@ -115,11 +119,11 @@ function Greeting(props) {
   }, [isLogged])
 
   return (
-    <div>
-      <div class='container-fluid p-4 text-center border'>
-        <span class='fancy header'>{header}</span>
-        <div class='text-center pt-1'><img  height='auto' width='2.5%' src='assets/separator.png'/></div>
-        <span class='fancy subtitle'>{subtitle}</span>
+    <div class='container-fluid'>
+      <div class='row p-4 m-0 justify-content-center align-items-center'>
+        <div class='fancy header'>{header}</div>
+        <div class='divider text-center m-2'>|</div>
+        <div class='fancy subtitle'>{subtitle}</div>
       </div>
 
       <div class='container'>
@@ -129,9 +133,9 @@ function Greeting(props) {
   );
 }
 
-function BookList(props) {
-  const books = props.books;
-  const listItems = books.map((book, index) => {
+function BookList({books, faceLeft=true}) {
+  const [title, setTitle] = useState('-\n-');
+  const listItems = books.map((book, index, arr) => {
     let temp = 'https://images-na.ssl-images-amazon.com/images/I/41DxTj1cWoL._SX316_BO1,204,203,200_.jpg';
 
     let margin = '0.5em';
@@ -139,66 +143,97 @@ function BookList(props) {
       temp = 'https://images-na.ssl-images-amazon.com/images/I/51Pli1sEdvL._SX348_BO1,204,203,200_.jpg';
       margin = '-0.5em';
     }
-    
+
+    const onHover = (title) => {
+      setTitle(title);
+    }
+
+    var newZIndex = faceLeft ? index+1 : arr.length - index;
+
     temp = book.ImageURLL == null ? temp : book.ImageURLL;
     return (
-    <div class='col-2 ' style={{zIndex: index+1}}>
-      <Book src={temp} margin={margin}/>
+    <div class='col-2 ' style={{zIndex: newZIndex}}>
+      <Book src={temp} title={book.Title} margin={margin} faceLeft={faceLeft} onHover={onHover}/>
     </div>
     );
   });
+  
+  let highlighted
 
   return(
-    <div class='row m-0'>
-      <div class='col-1'></div>
-      {listItems}
-      <div class='col-1'></div>
+    <div class='container border'>
+      <div class='row'>
+        <div class='col-1'></div>
+        {listItems}
+        <div class='col-1'></div>
+      </div>
+      <div class='row py-5 px-0 my-4 justify-content-center fancy border' width='100%' style={{fontSize: '2em', display: 'block'}}>{title}</div>
     </div>
   );
 }
 
-function Book(props) {
+function Book({margin, src, title, faceLeft, onHover}) {
   const summarize = (event) => {
     event.preventDefault();
     window.alert('Clicked');
     console.log('Clicked');
   }
 
+  const entered = (event) => {
+    onHover(title);
+  }
+
+  const left = (event) => {
+    onHover('-\n-');
+  }
+
+  let className = 'book '.concat(faceLeft ? 'left' : 'right');
   return (
-    <img class='book' onClick={summarize} style={{marginTop: props.margin}}  height='100%' width='150%' src={props.src}/>
+    <img class={className} onMouseEnter={entered} onMouseLeave={left} onClick={summarize} style={{marginTop: margin}} height='100%' width='150%' src={src}/>
   );
 }
 
 function Authors(props) {
   const authors = props.authors;
-  const defaultHeader = 'Authors you may like';
+  const defaultHeader = 'Your Author List';
+  const defaultSubtitle = 'Authors we think you\'ll like';
 
   let listItems = null;
   if(authors != null) {
-    listItems = authors.map((author, index) => {
-      return ( 
-        <div class='row my-5 py-5'>
-          <div class='border p-0 m-0 col-3 justify-content-center' style={{verticalAlign: 'middle'}}>{author[0].AuthorName}</div>
-          <div class='border p-0 m-0 col-1 justify-content-center'>~</div>
-          <div class='col-8 p-0 m-0 border '> 
-            <BookList books={author}/>
-          </div>
-        </div>
-
-      );
+    listItems = authors.map((author, index, arr) => {
+      let html;
+      let authorname = <div class='col-4 px-5 authorname text-center align-self-center' style={{bottom: '1.5em'}}>{author[0].AuthorName}</div>;
+      let books = <div class='col-8'><BookList books={author} faceLeft={index%2 == 0}/></div>;
+      
+      if(index % 2 == 0) {
+        html = 
+          <div class='row my-5 py-5  '>
+            {authorname}
+            {books}
+          </div>;
+      } else {
+        html = 
+          <div class='row my-5 py-5 '>
+            {books}
+            {authorname}
+          </div>;
+      }
+      return html;
     })
   }
 
   let html = null;
   if(authors != null) {
     html = 
-    <div class='container-fluid mt-5 pt-5 border'>
-      <span class='fancy header'>{defaultHeader}</span>
-      <div class='text-center pt-1 pb-0'><img  height='auto' width='2.5%' src='assets/separator.png'/></div>
+    <div class='container-fluid mt-5 pt-5'>
+      <div class='row p-4 m-0 justify-content-center align-items-center'>
+        <div class='fancy header'>{defaultHeader}</div>
+        <div class='divider text-center m-2'>|</div>
+        <div class='fancy subtitle'>{defaultSubtitle}</div>
+      </div>
       {listItems}
     </div>
   }
-
   return html;
 }
 
