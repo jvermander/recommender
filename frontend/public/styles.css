@@ -10,7 +10,12 @@
   transform: translateX(20%);
 }
 
-#navbar {
+.footer {
+  margin-top: 3em;
+  opacity: 0.8;
+}
+
+.bar {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
@@ -30,6 +35,15 @@
   text-shadow: 20px 20px 30px black;
   font-size: 5em;
   line-height: 1em;
+  bottom: 1.7em;
+}
+.bookname {
+  display: block; 
+  font-size: 2em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 1s;
 }
 
 .divider {
@@ -41,31 +55,47 @@
   font-family: fairy;
   src: url('assets/fairy.otf');
 }
-
 @font-face {
   font-family: fairyb;
   src: url('assets/FairyDustB.ttf')
 }
-
-@font-face {
-  font-family: capitalis;
-  src: url('assets/CapitalisTypOasis.ttf')
-}
-
 @font-face {
   font-family: mephisto;
   src: url('assets/Fiolex_Mephisto.ttf')
 }
-
 @font-face {
   font-family: k22;
   src: url('assets/K22\ Monastic.ttf')
 }
-
 @font-face {
   font-family: cruz;
   src: url('assets/cruz.ttf')
 }
+@font-face {
+  font-family: alice;
+  src: url('assets/Alice_in_Wonderland_3.ttf')
+}
+@font-face {
+  font-family: wonderland;
+  src: url('assets/Beyond\ Wonderland.ttf')
+}
+@font-face {
+  font-family: nightmare;
+  src: url('assets/NITEMARE.TTF')
+}
+@font-face {
+  font-family: blkchcry;
+  src: url('assets/BLKCHCRY.TTF')
+}
+@font-face {
+  font-family: achaf;
+  src: url('assets/Achafsex.ttf')
+}
+@font-face {
+  font-family: evan;
+  src: url('assets/evanescent.ttf')
+}
+
 #root {
   background-image: url('assets/bricks.jpg');
   /* background-repeat: no-repeat; */
