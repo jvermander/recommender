@@ -1,3 +1,20 @@
+html {
+  scroll-behavior: smooth;
+}
+
+ .tooltiptext {
+  visibility: hidden;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  text-align: center;
+  padding: 5px;
+  border-radius: 6px;
+ 
+  position: absolute;
+  z-index: 1;
+}
+
 .book {
   transition: 125ms linear;
   border: 0.3em solid black;
@@ -12,7 +29,6 @@
 
 .footer {
   margin-top: 3em;
-  opacity: 0.8;
 }
 
 .bar {
@@ -35,7 +51,7 @@
   text-shadow: 20px 20px 30px black;
   font-size: 5em;
   line-height: 1em;
-  bottom: 1.7em;
+  bottom: 1.65em;
 }
 .bookname {
   display: block; 
