@@ -27,7 +27,7 @@ function Recommender() {
   }
 
   return(
-    <div id='app' class='container-fluid text-center p-0 mb-0'>
+    <div class='container-fluid text-center p-0 mb-0'>
       <Navbar onLogin={onLogin}/>
       <Greeting isLogged={isLogged} authors={authors} username={username} recommendations={recommendations}/>
       <Authors authors={authors}/>
@@ -36,70 +36,119 @@ function Recommender() {
   );
 }
 
-function Footer() {
-
-  return (
-      <div class='footer row fancy bar align-items-center mx-0 mb-0 p-2'>
-        <div class='col p-0 m-0'>Author: Joe Vermander</div>
-        <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
-        <div class='col p-0 m-0'>E-mail: jlvermander@gmail.com</div>
-        <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
-        <div class='col'>GitHub: https://github.com/jvermander</div>
-      </div>
-  );
-}
-
 function Navbar(props) {
   const [isLogged, setIsLogged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const validate_credentials = () => {
+    let usrfield = document.getElementById('usrfield');
+    let usrfeedback = document.getElementById('usrfeedback');
+    let pwdfield = document.getElementById('pwdfield');
+    let pwdfeedback = document.getElementById('pwdfeedback');
+
+    let isUsrValid = usrfield.checkValidity();
+    let isPwdValid = pwdfield.checkValidity();
+
+    if(!isUsrValid) {
+      let errmsg = "";
+      if(usrfield.validity.valueMissing)
+        errmsg = "Required";
+      else if(usrfield.validity.patternMismatch)
+        errmsg = "Must be alphanumeric between 3 and 15 characters";
+      usrfeedback.innerHTML = errmsg;
+    }
+    if(!isPwdValid) {
+      let errmsg = "";
+      if(pwdfield.validity.valueMissing)
+        errmsg = "Required";
+      else if(pwdfield.validity.patternMismatch)
+        errmsg = "Must be at least 4 characters";
+      pwdfeedback.innerHTML = errmsg;
+    }
+
+    usrfeedback.style.visibility = isUsrValid ? 'hidden' : 'visible';
+    pwdfeedback.style.visibility = isPwdValid ? 'hidden' : 'visible';
+
+    return (isUsrValid) && (isPwdValid);
+  }
+
   const handleLogin = async(event) => {
     event.preventDefault();
-    let usr = event.target.parentElement.parentElement.usr.value.trim();
-    let pwd = event.target.parentElement.parentElement.pwd.value;
+    let form = event.target.parentElement.parentElement;
 
-    const postobj = {usr: usr, pwd: pwd};
-    try {
-      setIsLoading(true);
-      let reply = await axios.post('login.php', postobj);
-      let arr = reply.data;
-      console.log('In handleLogin');
-      console.log(reply.data)
+    if(validate_credentials()) {
+      let usr = form.usr.value.trim();
+      let pwd = form.pwd.value;
+      const postobj = {usr: usr, pwd: pwd};
+      try {
+        setIsLoading(true);
+        let reply = await axios.post('login.php', postobj);
+        let arr = reply.data;
+        console.log(reply.data)
 
-      // authentication success
-      setIsLogged(true);
+        // authentication success
+        setIsLogged(true);
 
-      // check if user has personalized recommendations
-      if(arr.length == 0)
-        console.log('No Ratings!');
-      props.onLogin(usr, arr)
-    } catch(e) {
-      // authentication failure
-      console.log(e);
-
-    } finally {
-      setIsLoading(false);
+        // check if user has personalized recommendations
+        if(arr.length == 0)
+          console.log('No Ratings!');
+        props.onLogin(usr, arr)
+      } catch(e) {
+        // authentication failure
+        console.log(e);
+        let usrfeedback = document.getElementById('usrfeedback');
+        usrfeedback.style.visibility = 'visible';
+        usrfeedback.innerHTML = 'Incorrect username or password';
+      } finally {
+        setIsLoading(false);
+      }
     }
   }
 
-  const handleRegister = event => {
+  const handleRegister = async(event) => {
     event.preventDefault();
-    console.log(event.target.parentElement.usr.value);
+    let form = event.target.parentElement.parentElement;
 
+    if(validate_credentials()) {
+      let usr = form.usr.value.trim();
+      let pwd = form.pwd.value;
+      const postobj = {usr: usr, pwd: pwd};
+      try {
+        setIsLoading(true);
+        let reply = await axios.post('register.php', postobj);
+        let arr = reply.data;
+        console.log(reply.data)
+
+        let usrfeedback = document.getElementById('usrfeedback');
+        usrfeedback.style.visibility = 'visible';
+        usrfeedback.innerHTML = 'Success - Please login';
+      } catch(e) {
+        // registration failure
+        console.log(e);
+        let usrfeedback = document.getElementById('usrfeedback');
+        usrfeedback.style.visibility = 'visible';
+        usrfeedback.innerHTML = 'Username already exists';
+
+      } finally {
+        setIsLoading(false);
+      }
+    }
   }
-  
+
   var html;
   if(!isLogged) {
       html =
-      <form method='POST' class='ml-auto my-0 inline-form needs-validation' noValidate>
+      <form method='POST' class='ml-auto my-0'>
       <fieldset class='form-row' disabled={isLoading}>
-        <div class='col m-0 p-0'>
-          <input class='form-control' type="text" name="usr" placeholder="Username" autocomplete="off" required></input>
-          <div class='invalid-tooltip'>Username required</div>
+        <div class='col m-0 p-0 form-group'>
+          <input id='usrfield' type="text" name="usr" placeholder="Username" autocomplete="off" 
+                 pattern='[a-zA-Z0-9_]{3,15}' required></input>
+          <div id='usrfeedback' class='tooltiptext'></div>
         </div>
-        <div class='col m-0 p-0'>
-          <input class='form-control' type="password" name="pwd" placeholder="Password" autocomplete="off" required></input>
-          <div class='invalid-tooltip'>Password required</div>
+        <div class='col m-0 p-0 form-group'>
+          <input id='pwdfield' type="password" name="pwd" placeholder="Password" autocomplete="off" 
+                 pattern='.{4,256}' required></input>
+          <div id='pwdfeedback' class='tooltiptext'></div>
         </div>
         
         <button class='btn btn-dark' type="submit" onClick={handleLogin}>Login</button>  
@@ -107,20 +156,23 @@ function Navbar(props) {
       </fieldset>
       </form>;
   } else {
-      html = <div><button class='btn btn-dark mr-1'>Your Ratings</button><button class='btn btn-dark'>Logout</button></div>
+      html = 
+        <div>
+          <button class='btn btn-dark mr-1'>Your Ratings</button>
+          <a href="#authors">
+            <button class='btn btn-dark mr-1'>Your Authors</button>
+          </a>
+          <button class='btn btn-dark'>Logout</button>
+        </div>
   }
   return (
-    <div class='navbar bar sticky-top p-2 mt-2'>
-      <img class='mx-2' height='auto' width='3%' src='assets/logo2.png'></img>
+    <div class='navbar bar sticky-top p-2 mt-2 text-left'>
+      <div class='col m-0 p-0'><a href="#root"><img class='mx-2' height='auto' width='50px' src='assets/logo2.png'></img></a></div>
       {html} 
     </div>);
 }
 
-function Greeting(props) {
-  const isLogged = props.isLogged;
-  // const hasRated = props.hasRated;
-  const username = props.username;
-  const recommendations = props.recommendations;
+function Greeting({isLogged, username, recommendations, authors}) {
 
   const unloggedHeader = 'Need a book to read?';
   const defaultSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
@@ -131,16 +183,13 @@ function Greeting(props) {
 
   // On login/logout
   useEffect(() => {
-
     if(isLogged) {
       setHeader('Welcome, ' + username + '!');
-      console.log(props.authors)
       setSubtitle(ratedSubtitle);
     } else {
       setHeader(unloggedHeader);
       setSubtitle(defaultSubtitle);
     }
-
   }, [isLogged])
 
   return (
@@ -150,9 +199,8 @@ function Greeting(props) {
         <div class='divider text-center m-2'>|</div>
         <div class='fancy subtitle'>{subtitle}</div>
       </div>
-
       <div class='container'>
-            <BookList books={props.recommendations} />
+            <BookList books={recommendations} />
       </div>
     </div>
   );
@@ -262,8 +310,8 @@ function Authors(props) {
 
   let html = null;
   if(authors != null) {
-    html = 
-    <div class='container-fluid my-5 pt-5'>
+    html =
+    <div id='authors' class='container-fluid my-5 pt-5'>
       <div class='row p-4 m-0 justify-content-center align-items-center'>
         <div class='fancy header'>{defaultHeader}</div>
         <div class='divider text-center m-2'>|</div>
@@ -273,6 +321,18 @@ function Authors(props) {
     </div>
   }
   return html;
+}
+
+function Footer() {
+  return (
+      <div class='footer row fancy bar align-items-center mx-0 mb-0 p-2'>
+        <div class='col p-0 m-0'>Author: Joe Vermander</div>
+        <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
+        <div class='col p-0 m-0'>E-mail: jlvermander@gmail.com</div>
+        <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
+        <div class='col'>GitHub: https://github.com/jvermander</div>
+      </div>
+  );
 }
 
 ReactDOM.render(<Recommender/>, document.getElementById('root'));
