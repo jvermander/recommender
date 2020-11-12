@@ -2,14 +2,10 @@ import React, { useState, useEffect, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
 
-const books = [{Title: "null1"}, {Title: "null2"}, {Title: "null3"}, {Title: "null4"}, 
-               {Title: "null-------------------------------------------------------------------------- \
-               --------------------------------------------------------------"}];
-
-function Recommender() {
+function Recommender({popular, onload}) {
   const [isLogged, setIsLogged] = useState(false);
   const [username, setUsername] = useState(null);
-  const [recommendations, setRecommendations] = useState(books);
+  const [recommendations, setRecommendations] = useState(popular);
   const [authors, setAuthors] = useState(null);
 
   const onLogin = (username, arr) => {
@@ -21,22 +17,40 @@ function Recommender() {
     setUsername(username);
     setIsLogged(true);
 
-    console.log(recommendations)
-    console.log(arr.slice(1))
-    console.log(authors)
+    if(arr.length > 0) {
+      console.log("Recommendations:");
+      console.log(arr[0]);
+    }
+
+    if(arr.length > 1) {
+      console.log("Authors:");
+      console.log(arr.slice(1));
+    }
   }
+
+  const onLogout = () => {
+    setUsername(null);
+    setRecommendations(popular);
+    setAuthors(null);
+    setIsLogged(false);
+  }
+
+  useEffect(() => {
+    onload();
+  }, []);
 
   return(
     <div class='container-fluid text-center p-0 mb-0'>
-      <Navbar onLogin={onLogin}/>
-      <Greeting isLogged={isLogged} authors={authors} username={username} recommendations={recommendations}/>
+      <LoadingScreen display={popular == null}/>
+      <Navbar onLogin={onLogin} onLogout={onLogout}/>
+      <Greeting isLogged={isLogged} username={username} recommendations={recommendations} popular={popular}/>
       <Authors authors={authors}/>
-      <Footer/>
+      <Footer authors={authors}/>
     </div>
   );
 }
 
-function Navbar(props) {
+function Navbar({onLogin, onLogout}) {
   const [isLogged, setIsLogged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,17 +66,17 @@ function Navbar(props) {
     if(!isUsrValid) {
       let errmsg = "";
       if(usrfield.validity.valueMissing)
-        errmsg = "Required";
+        errmsg = "Required.";
       else if(usrfield.validity.patternMismatch)
-        errmsg = "Must be alphanumeric between 3 and 15 characters";
+        errmsg = "Must be alphanumeric, between 3 and 15 characters.";
       usrfeedback.innerHTML = errmsg;
     }
     if(!isPwdValid) {
       let errmsg = "";
       if(pwdfield.validity.valueMissing)
-        errmsg = "Required";
+        errmsg = "Required.";
       else if(pwdfield.validity.patternMismatch)
-        errmsg = "Must be at least 4 characters";
+        errmsg = "Must be at least 4 characters.";
       pwdfeedback.innerHTML = errmsg;
     }
 
@@ -84,21 +98,18 @@ function Navbar(props) {
         setIsLoading(true);
         let reply = await axios.post('login.php', postobj);
         let arr = reply.data;
-        console.log(reply.data)
+        console.log("Server data:");
+        console.log(reply.data);
 
         // authentication success
         setIsLogged(true);
-
-        // check if user has personalized recommendations
-        if(arr.length == 0)
-          console.log('No Ratings!');
-        props.onLogin(usr, arr)
+        onLogin(usr, arr)
       } catch(e) {
         // authentication failure
         console.log(e);
         let usrfeedback = document.getElementById('usrfeedback');
         usrfeedback.style.visibility = 'visible';
-        usrfeedback.innerHTML = 'Incorrect username or password';
+        usrfeedback.innerHTML = 'Incorrect username or password.';
       } finally {
         setIsLoading(false);
       }
@@ -119,20 +130,30 @@ function Navbar(props) {
         let arr = reply.data;
         console.log(reply.data)
 
-        let usrfeedback = document.getElementById('usrfeedback');
-        usrfeedback.style.visibility = 'visible';
-        usrfeedback.innerHTML = 'Success - Please login';
+        reply = await axios.post('login.php', postobj);
+        arr = reply.data;
+        console.log("Server data:");
+        console.log(reply.data)
+
+        // registration, and thus authentication success
+        setIsLogged(true);
+        onLogin(usr, arr)
       } catch(e) {
         // registration failure
         console.log(e);
         let usrfeedback = document.getElementById('usrfeedback');
         usrfeedback.style.visibility = 'visible';
-        usrfeedback.innerHTML = 'Username already exists';
+        usrfeedback.innerHTML = 'Username already exists.';
 
       } finally {
         setIsLoading(false);
       }
     }
+  }
+
+  const handleLogout = () => {
+    setIsLogged(false);
+    onLogout();
   }
 
   var html;
@@ -162,7 +183,7 @@ function Navbar(props) {
           <a href="#authors">
             <button class='btn btn-dark mr-1'>Your Authors</button>
           </a>
-          <button class='btn btn-dark'>Logout</button>
+          <button class='btn btn-dark' onClick={handleLogout}>Logout</button>
         </div>
   }
   return (
@@ -172,11 +193,12 @@ function Navbar(props) {
     </div>);
 }
 
-function Greeting({isLogged, username, recommendations, authors}) {
+function Greeting({isLogged, username, recommendations, popular}) {
 
   const unloggedHeader = 'Need a book to read?';
   const defaultSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
-  const ratedSubtitle = 'What similar users are currently reading'
+  const ratedSubtitle = 'What similar users are currently reading';
+  const unratedSubtitle = 'Rate some books to get personalized recommendations!';
 
   const [header, setHeader] = useState(unloggedHeader);
   const [subtitle, setSubtitle] = useState(defaultSubtitle);
@@ -185,15 +207,19 @@ function Greeting({isLogged, username, recommendations, authors}) {
   useEffect(() => {
     if(isLogged) {
       setHeader('Welcome, ' + username + '!');
-      setSubtitle(ratedSubtitle);
+      if(recommendations === popular)
+        setSubtitle(unratedSubtitle);
+      else
+        setSubtitle(ratedSubtitle);
     } else {
       setHeader(unloggedHeader);
       setSubtitle(defaultSubtitle);
     }
   }, [isLogged])
 
+  let className = 'container-fluid'.concat(isLogged && recommendations !== popular ? ' fadein' : null);
   return (
-    <div class='container-fluid'>
+    <div class={className}>
       <div class='row p-4 m-0 justify-content-center align-items-center'>
         <div class='fancy header'>{header}</div>
         <div class='divider text-center m-2'>|</div>
@@ -210,13 +236,8 @@ function BookList({books, faceLeft=true}) {
   const [title, setTitle] = useState('-');
   const [opacity, setOpacity] = useState(0);
   const listItems = books.map((book, index, arr) => {
-    let temp = 'https://images-na.ssl-images-amazon.com/images/I/41DxTj1cWoL._SX316_BO1,204,203,200_.jpg';
 
-    let margin = '0.5em';
-    if(index % 2 == 0) {
-      temp = 'https://images-na.ssl-images-amazon.com/images/I/51Pli1sEdvL._SX348_BO1,204,203,200_.jpg';
-      margin = '-0.5em';
-    }
+    let margin = index % 2 == 0 ? '-0.5em' : '0.5em';
 
     const onHover = (string) => {
       setOpacity(string == null ? 0 : 1);
@@ -225,10 +246,9 @@ function BookList({books, faceLeft=true}) {
 
     var newZIndex = faceLeft ? index+1 : arr.length - index;
 
-    temp = book.ImageURLL == null ? temp : book.ImageURLL;
     return (
     <div class='col-2' style={{zIndex: newZIndex}}>
-      <Book src={temp} title={book.Title} margin={margin} faceLeft={faceLeft} onHover={onHover}/>
+      <Book src={book.ImageURLL} title={book.Title} margin={margin} faceLeft={faceLeft} onHover={onHover}/>
     </div>
     );
   });  
@@ -260,7 +280,7 @@ function Book({margin, src, title, faceLeft, onHover}) {
     onHover(null);
   }
 
-  let className = 'book '.concat(faceLeft ? 'left' : 'right');
+  let className = 'book'.concat(faceLeft ? ' left' : ' right');
   return (
     <img class={className} onMouseEnter={entered} onMouseLeave={left} onClick={summarize} style={{marginTop: margin}} height='100%' width='150%' src={src}/>
   );
@@ -312,7 +332,7 @@ function Authors(props) {
   if(authors != null) {
     html =
     <div id='authors' class='container-fluid my-5 pt-5'>
-      <div class='row p-4 m-0 justify-content-center align-items-center'>
+      <div class='row p-4 m-0 mb-5 justify-content-center align-items-center'>
         <div class='fancy header'>{defaultHeader}</div>
         <div class='divider text-center m-2'>|</div>
         <div class='fancy subtitle'>{defaultSubtitle}</div>
@@ -323,9 +343,10 @@ function Authors(props) {
   return html;
 }
 
-function Footer() {
+function Footer({authors}) {
+  let className = 'page-footer row fancy bar align-items-center mx-0 mb-0 p-2'.concat(authors == null ? ' fixed-bottom' : null);
   return (
-      <div class='footer row fancy bar align-items-center mx-0 mb-0 p-2'>
+      <div class={className}>
         <div class='col p-0 m-0'>Author: Joe Vermander</div>
         <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
         <div class='col p-0 m-0'>E-mail: jlvermander@gmail.com</div>
@@ -335,4 +356,49 @@ function Footer() {
   );
 }
 
-ReactDOM.render(<Recommender/>, document.getElementById('root'));
+function LoadingScreen({isLoading}) {
+  return (
+    <div style={{display: isLoading ? 'flex' : 'none'}} class='loadingScreen sticky-top'>
+      <div class='loadingScreenText'>Loading ...</div>
+    </div>
+  )
+}
+
+function App() {
+  const [popular, setPopular] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const onload = () => {
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+  }
+
+  useEffect(() => {
+    axios.get('greeting.php').then((reply) => { 
+      console.log(reply.data);
+      setPopular(reply.data);
+    });
+  }, [])
+
+  let html;
+  if(popular != null) {
+    html = 
+      <div>
+        <LoadingScreen isLoading={isLoading}/>
+        <Recommender popular={popular} onload={onload}/>
+      </div>
+  } else {
+    html = <LoadingScreen isLoading={true}/>
+  }
+
+  return html;
+}
+
+ReactDOM.render(<App/>, document.getElementById('root')); 
+
+
+
+
+
+

@@ -115,6 +115,10 @@ def load_model( path='models/impALS/' ):
   auth_lookup = pickle.load(open(path + 'authlookup.sav', 'rb'))
   user_lookup = pickle.load(open(path + 'userlookup.sav', 'rb'))
 
+  return book_model, auth_model, \
+         all_book_ratings, all_auth_ratings, \
+         book_lookup, auth_lookup, user_lookup
+
 #todo: remove debugging
 def recommend_for( user, debug=False ):
   if(debug):
@@ -449,34 +453,5 @@ def recommend_books_for_each_author(user, recommended_authors, available, n=5):
     recommended_authors_books.append(temp)
   return recommended_authors_books
 
-main(sys.argv)
-
-# def get_average_author_ratings( book_ratings ):
-#   book_ratings = lookup_books(book_ratings)[['UID', 'AID', 'Score']]
-
-#   stars = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
-#   stars = pd.DataFrame(index=stars)
-#   stars['Count'] = 1
-#   print(stars)
-#   book_ratings = book_ratings.groupby(['UID', 'AID']).apply(average_user_author_rating, stars.copy())
-
-#   book_ratings.to_csv(TRAIN_DIR + '/authors.csv', index=False)
-
-# def average_user_author_rating( ratings, stars_counts ):
-#   N = ratings.shape[0]
-#   K = 10
-#   z = 1.65
-#   author_star_counts = pd.DataFrame(ratings.Score.value_counts())
-#   author_star_counts.columns = ['Count']
-#   star_counts = stars_counts.add(author_star_counts, fill_value=0)
-
-#   A = np.sum(star_counts.index.values * star_counts.Count.values) / (N + K)
-#   B = np.sum(star_counts.index.values ** 2 * star_counts.Count.values) / (N + K)
-
-#   avg = A - z * np.sqrt((B - A ** 2) / (N + K + 1))
-#   ratings = ratings[['UID', 'AID']]
-#   ratings = ratings.iloc[0]
-#   ratings['Score'] = avg
-#   ratings['UID'] = ratings['UID'].astype(int)
-#   ratings['AID'] = ratings['AID'].astype(int)
-#   return ratings
+if __name__ == "__main__":
+  main(sys.argv)
