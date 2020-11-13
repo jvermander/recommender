@@ -8,6 +8,8 @@ function Recommender({popular, onload}) {
   const [recommendations, setRecommendations] = useState(popular);
   const [authors, setAuthors] = useState(null);
 
+  const [focusedBook, setFocusedBook] = useState(null);
+
   const onLogin = (username, arr) => {
     if(arr.length > 0) {
       setRecommendations(arr[0]);
@@ -35,17 +37,67 @@ function Recommender({popular, onload}) {
     setIsLogged(false);
   }
 
+  const onSummary = (book) => {
+    setFocusedBook(book);
+  }
+
   useEffect(() => {
     onload();
   }, []);
 
   return(
     <div class='container-fluid text-center p-0 mb-0'>
-      <LoadingScreen display={popular == null}/>
       <Navbar onLogin={onLogin} onLogout={onLogout}/>
-      <Greeting isLogged={isLogged} username={username} recommendations={recommendations} popular={popular}/>
-      <Authors authors={authors}/>
+      {/* <Greeting isLogged={isLogged} username={username} recommendations={recommendations} popular={popular} onSummary={onSummary}/> */}
+      <Authors authors={authors} onSummary={onSummary}/>
       <Footer authors={authors}/>
+
+      <BookModal book={focusedBook} onSummary={onSummary}/>
+    </div>
+  );
+}
+
+function BookModal({book, onSummary}) {
+  const exit = (event) => {
+      onSummary(null);
+  }
+
+  let modal = null;
+  if(book != null) {
+    let stringContent = 
+    <div class="modalText" style={{fontSize: '26px', fontFamily: 'fairy', lineHeight: '2em', }}>
+    <div><span>Title</span> • <span>{book.Title}</span></div>
+    <div><span>Author</span> • <span>{book.AuthorName}</span></div>
+    <div><span>Year Published</span> • <span>{book.YearPublished}</span></div>
+    <div><span>Publisher</span> • <span>{book.Publisher}</span></div>
+    <div><span>ISBN</span> • <span>{book.ISBN}</span></div>
+  </div>
+
+    modal = 
+    <div class='p-4' 
+      style={{  
+                zIndex: 51, display: 'flex',
+                justifyContent: 'center',
+                flexDirection: 'row', justifyContent: 'right', alignItems: 'center',
+                position: 'fixed'}}>
+      <div class='p-0 m-0' id='modalexit' style={{position: "absolute", top: 0, right: 0, fontSize: '36px'}} onClick={exit}>X</div>
+      <div><img src={book.ImageURLL} class='p-2' style={{border: '1px solid white'}}></img></div>
+        {stringContent}
+    </div>;
+  }
+
+  return(
+    <div id='bookModalBackground' 
+      style={{
+        zIndex:50, 
+        display: book == null ? 'none' : 'flex',
+        overflow: 'hidden',
+        position: 'fixed', top: 0, left: 0, height: '100vh', width: '100%',
+        justifyContent: 'center', alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.90)',
+        fontFamily: 'fairy'
+      }}>
+      {modal}
     </div>
   );
 }
@@ -193,7 +245,7 @@ function Navbar({onLogin, onLogout}) {
     </div>);
 }
 
-function Greeting({isLogged, username, recommendations, popular}) {
+function Greeting({isLogged, username, recommendations, popular, onSummary}) {
 
   const unloggedHeader = 'Need a book to read?';
   const defaultSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
@@ -226,15 +278,16 @@ function Greeting({isLogged, username, recommendations, popular}) {
         <div class='fancy subtitle'>{subtitle}</div>
       </div>
       <div class='container'>
-            <BookList books={recommendations} />
+            <BookList books={recommendations} onSummary={onSummary}/>
       </div>
     </div>
   );
 }
 
-function BookList({books, faceLeft=true}) {
+function BookList({books, faceLeft=true, onSummary}) {
   const [title, setTitle] = useState('-');
   const [opacity, setOpacity] = useState(0);
+
   const listItems = books.map((book, index, arr) => {
 
     let margin = index % 2 == 0 ? '-0.5em' : '0.5em';
@@ -245,10 +298,9 @@ function BookList({books, faceLeft=true}) {
     }
 
     var newZIndex = faceLeft ? index+1 : arr.length - index;
-
     return (
     <div class='col-2' style={{zIndex: newZIndex}}>
-      <Book src={book.ImageURLL} title={book.Title} margin={margin} faceLeft={faceLeft} onHover={onHover}/>
+      <Book book={book} margin={margin} faceLeft={faceLeft} onHover={onHover} onSummary={onSummary}/>
     </div>
     );
   });  
@@ -265,15 +317,15 @@ function BookList({books, faceLeft=true}) {
   );
 }
 
-function Book({margin, src, title, faceLeft, onHover}) {
-  const summarize = (event) => {
+function Book({margin, book, faceLeft, onHover, onSummary}) {
+
+  const clicked = (event) => {
     event.preventDefault();
-    window.alert('Clicked');
-    console.log('Clicked');
+    onSummary(book);
   }
 
   const entered = (event) => {
-    onHover(title);
+    onHover(book.Title);
   }
 
   const left = (event) => {
@@ -282,25 +334,34 @@ function Book({margin, src, title, faceLeft, onHover}) {
 
   let className = 'book'.concat(faceLeft ? ' left' : ' right');
   return (
-    <img class={className} onMouseEnter={entered} onMouseLeave={left} onClick={summarize} style={{marginTop: margin}} height='100%' width='150%' src={src}/>
+      <img class={className} 
+           onMouseEnter={entered} 
+           onMouseLeave={left} 
+           onClick={clicked} 
+           src={book.ImageURLL} 
+           style={{marginTop: margin}} height='100%' width='150%'/>
   );
 }
 
 // Random fancy author name fonts
 const FONTS = ['fairyb', 'mephisto', 'k22', 'alice', 'wonderland', 'nightmare', 'blkchcry', 'achaf'];
-function getRandomFont() {
-  let min = 0;
-  let max = FONTS.length-1;
+var randomFonts = getRandomFonts();
 
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  let i = Math.floor(Math.random() * (max - min + 1)) + min;
+function getRandomFonts(n=5) {
+  let fonts = [];
+  for(var i = 0; i < n; i++) {
+    let min = 0;
+    let max = FONTS.length-1;
 
-  return FONTS[i];
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    let i = Math.floor(Math.random() * (max - min + 1)) + min;
+    fonts.push(FONTS[i]);
+  }
+  return fonts;
 }
 
-function Authors(props) {
-  const authors = props.authors;
+function Authors({authors, onSummary}) {
   const defaultHeader = 'Your Author List';
   const defaultSubtitle = 'Authors we think you\'ll like';
 
@@ -308,8 +369,8 @@ function Authors(props) {
   if(authors != null) {
     listItems = authors.map((author, index, arr) => {
       let html;
-      let authorname = <div class='col-4 px-5 authorname text-center align-self-center' style={{fontFamily: getRandomFont(), left: index%2==0?'1em':'-0.5em'}}>{author[0].AuthorName}</div>;
-      let books = <div class='col-8'><BookList books={author} faceLeft={index%2 == 0}/></div>;
+      let authorname = <div class='col-4 px-5 authorname text-center align-self-center' style={{fontFamily: randomFonts[index], left: index%2==0?'1em':'-0.5em'}}>{author[0].AuthorName}</div>;
+      let books = <div class='col-8'><BookList books={author} faceLeft={index%2 == 0} onSummary={onSummary}/></div>;
       
       if(index % 2 == 0) {
         html = 
@@ -331,7 +392,7 @@ function Authors(props) {
   let html = null;
   if(authors != null) {
     html =
-    <div id='authors' class='container-fluid my-5 pt-5'>
+    <div id='authors' class='container'>
       <div class='row p-4 m-0 mb-5 justify-content-center align-items-center'>
         <div class='fancy header'>{defaultHeader}</div>
         <div class='divider text-center m-2'>|</div>
