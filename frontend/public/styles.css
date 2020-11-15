@@ -36,6 +36,35 @@ html {
   text-shadow: 4px 4px 15px black;
 }
 
+.carouselBtn {
+  font-size: 128px;
+  line-height: 128px;
+  font-family: lick;
+  cursor: pointer;
+  padding: 0;
+
+  position: relative;
+  user-select: none;
+}
+
+@font-face {
+  font-family: lick;
+  src: url('assets/Lickcurl\ Petite.ttf')
+}
+
+@font-face {
+  font-family: beo;
+  src: url('assets/BEOWULF_MODERN.ttf')
+}
+
+.carouselBtn:hover {
+  color: grey;
+}
+
+.carouselBtn:active {
+  color: black;
+}
+
 .header {
   font-size: 3em;
 }
@@ -45,7 +74,7 @@ html {
 .authorname {
   font-family: fairyb;
   text-shadow: 20px 20px 30px black;
-  font-size: 5em;
+  font-size: 4em;
   line-height: 1em;
   bottom: 1.65em;
 }
@@ -135,6 +164,11 @@ html {
   font-family: evan;
   src: url('assets/evanescent.ttf')
 }
+@font-face {
+  font-family: occult;
+  src: url('assets/Occult.ttf')
+}
+
 
 .fadein {
   animation: fadeIn ease-in 3s;

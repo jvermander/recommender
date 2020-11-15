@@ -6,34 +6,28 @@ function Recommender({popular, onload}) {
   const [isLogged, setIsLogged] = useState(false);
   const [username, setUsername] = useState(null);
   const [recommendations, setRecommendations] = useState(popular);
-  const [authors, setAuthors] = useState(null);
 
   const [focusedBook, setFocusedBook] = useState(null);
 
   const onLogin = (username, arr) => {
-    if(arr.length > 0) {
-      setRecommendations(arr[0]);
-      if(arr.length > 1)
-        setAuthors(arr.slice(1));
-    } 
+    if(arr.length > 0)
+      setRecommendations(arr);
     setUsername(username);
     setIsLogged(true);
 
     if(arr.length > 0) {
       console.log("Recommendations:");
       console.log(arr[0]);
-    }
-
-    if(arr.length > 1) {
-      console.log("Authors:");
-      console.log(arr.slice(1));
+      if(arr.length > 1) {
+        console.log("Authors:");
+        console.log(arr.slice(1));
+      }
     }
   }
 
   const onLogout = () => {
     setUsername(null);
     setRecommendations(popular);
-    setAuthors(null);
     setIsLogged(false);
   }
 
@@ -46,12 +40,10 @@ function Recommender({popular, onload}) {
   }, []);
 
   return(
-    <div class='container-fluid text-center p-0 mb-0'>
+    <div class='container-fluid text-center p-0 m-0'>
       <Navbar onLogin={onLogin} onLogout={onLogout}/>
-      {/* <Greeting isLogged={isLogged} username={username} recommendations={recommendations} popular={popular} onSummary={onSummary}/> */}
-      <Authors authors={authors} onSummary={onSummary}/>
-      <Footer authors={authors}/>
-
+      <Carousel isLogged={isLogged} username={username} recommendations={recommendations} popular={popular} onSummary={onSummary}/>
+      <Footer/>
       <BookModal book={focusedBook} onSummary={onSummary}/>
     </div>
   );
@@ -231,10 +223,8 @@ function Navbar({onLogin, onLogout}) {
   } else {
       html = 
         <div>
-          <button class='btn btn-dark mr-1'>Your Ratings</button>
-          <a href="#authors">
-            <button class='btn btn-dark mr-1'>Your Authors</button>
-          </a>
+          <button class='btn btn-dark mr-1'>Rate Books</button>
+          <button class='btn btn-dark mr-1'>Your Books</button>
           <button class='btn btn-dark' onClick={handleLogout}>Logout</button>
         </div>
   }
@@ -245,31 +235,42 @@ function Navbar({onLogin, onLogout}) {
     </div>);
 }
 
-function Greeting({isLogged, username, recommendations, popular, onSummary}) {
+function Carousel({isLogged, username, recommendations, popular, onSummary}) {
+  const genericHeader = 'Need a book to read?';
+  const genericSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
 
-  const unloggedHeader = 'Need a book to read?';
-  const defaultSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
-  const ratedSubtitle = 'What similar users are currently reading';
-  const unratedSubtitle = 'Rate some books to get personalized recommendations!';
+  const userSubtitle = 'What similar users are currently reading';
 
-  const [header, setHeader] = useState(unloggedHeader);
-  const [subtitle, setSubtitle] = useState(defaultSubtitle);
+  const authorsHeader = 'Your Author List';
+  const authorsSubtitle = 'Authors we think you\'ll like';
+
+  const [header, setHeader] = useState(genericHeader);
+  const [subtitle, setSubtitle] = useState(genericSubtitle);
+  const [index, setIndex] = useState(0);
+
 
   // On login/logout
   useEffect(() => {
     if(isLogged) {
-      setHeader('Welcome, ' + username + '!');
-      if(recommendations === popular)
-        setSubtitle(unratedSubtitle);
-      else
-        setSubtitle(ratedSubtitle);
+        setHeader(index == 0 ? 'Welcome ' + username + '!' : authorsHeader);
+        setSubtitle(index == 0 ? userSubtitle : authorsSubtitle);
     } else {
-      setHeader(unloggedHeader);
-      setSubtitle(defaultSubtitle);
+        setIndex(0);
+        setHeader(genericHeader);
+        setSubtitle(genericSubtitle);
     }
-  }, [isLogged])
+  }, [isLogged, index])
 
-  let className = 'container-fluid'.concat(isLogged && recommendations !== popular ? ' fadein' : null);
+  const clickRight = () => {
+    setIndex((index+1) % recommendations.length);
+  }
+
+  const clickLeft = () => {
+    let l = recommendations.length
+    setIndex( (((index-1) % l) + l) % l );
+  }
+
+  let className = 'col'.concat(isLogged && recommendations !== popular ? ' fadein' : null);
   return (
     <div class={className}>
       <div class='row p-4 m-0 justify-content-center align-items-center'>
@@ -277,42 +278,81 @@ function Greeting({isLogged, username, recommendations, popular, onSummary}) {
         <div class='divider text-center m-2'>|</div>
         <div class='fancy subtitle'>{subtitle}</div>
       </div>
-      <div class='container'>
-            <BookList books={recommendations} onSummary={onSummary}/>
+      <div class='row m-0 justify-content-center'>
+        <div class='col align-items-top m-0 p-0 justify-content-right'>
+          <div style={{position: 'relative', top: '12.5vh'}} class='row justify-content-center'>
+            <div class='carouselBtn p-0' onClick={clickLeft} style={{display: isLogged ? 'flex' : 'none'}}>&lt;</div>
+          </div>
+        </div>
+        <BookList books={recommendations[isLogged? index : 0]} onSummary={onSummary} showAuthor={isLogged? index != 0: false}/>
+        <div class='col align-items-top m-0 p-0'>
+          <div style={{position: 'relative', top: '12.5vh'}} class='row justify-content-center'>
+            <div class='carouselBtn p-0' onClick={clickRight} style={{display: isLogged ? 'flex' : 'none'}}>&gt;</div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function BookList({books, faceLeft=true, onSummary}) {
-  const [title, setTitle] = useState('-');
-  const [opacity, setOpacity] = useState(0);
+function BookList({books, faceLeft=true, onSummary, showAuthor}) {
+  const [title, setTitle] = useState(showAuthor ? books[0].AuthorName : '-');
+  const [opacity, setOpacity] = useState(showAuthor ? 1: 0);
+  const [font, setFont] = useState('fairy');
+  const [fontSize, setFontSize] = useState('2em');
 
   const listItems = books.map((book, index, arr) => {
-
     let margin = index % 2 == 0 ? '-0.5em' : '0.5em';
 
     const onHover = (string) => {
       setOpacity(string == null ? 0 : 1);
-      setTitle(string == null ? title : string);
+      if(string == null) {
+        if(showAuthor) {
+          setTitle(books[0].AuthorName);
+          setOpacity(1);
+          setFont('fairyb');
+          setFontSize('3em');
+        } else {
+          setTitle(title);
+          setOpacity(0);
+          setFont('fairy');
+          setFontSize('2em');
+        }
+      } else {
+        setTitle(string);
+        setOpacity(1);
+        setFont('fairy');
+        setFontSize('2em');
+      }
     }
 
     var newZIndex = faceLeft ? index+1 : arr.length - index;
     return (
-    <div class='col-2' style={{zIndex: newZIndex}}>
+    <div class='col-2' style={{zIndex: newZIndex, height: '42.5vh'}}>
       <Book book={book} margin={margin} faceLeft={faceLeft} onHover={onHover} onSummary={onSummary}/>
     </div>
     );
   });  
 
+  useEffect(() => {
+    if(showAuthor) {
+      setTitle(books[0].AuthorName);
+      setOpacity(1);
+      setFont('fairyb');
+      setFontSize('3em');
+    } else {
+      setOpacity(0);
+    }
+  }, [showAuthor, books])
+
   return(
-    <div class='container'>
-      <div class='row'>
+    <div class='container m-0 justify-self-center'>
+      <div class='row justify-content-center'>
         <div class='col-1'></div>
         {listItems}
         <div class='col-1'></div>
       </div>
-      <div class='row py-5 px-0 my-4 fancy bookname' style={{opacity: opacity}}>{title}</div>
+      <div class='row py-5 px-0 my-4 fancy bookname' style={{opacity: opacity, fontFamily: font, fontSize: fontSize}}>{title}</div>
     </div>
   );
 }
@@ -339,7 +379,7 @@ function Book({margin, book, faceLeft, onHover, onSummary}) {
            onMouseLeave={left} 
            onClick={clicked} 
            src={book.ImageURLL} 
-           style={{marginTop: margin}} height='100%' width='150%'/>
+           style={{marginTop: margin, marginLeft: '-2vw'}} height='100%' width='150%'/>
   );
 }
 
@@ -361,51 +401,45 @@ function getRandomFonts(n=5) {
   return fonts;
 }
 
-function Authors({authors, onSummary}) {
-  const defaultHeader = 'Your Author List';
-  const defaultSubtitle = 'Authors we think you\'ll like';
+// function Authors({authors, onSummary}) {
+//   const defaultHeader = 'Your Author List';
+//   const defaultSubtitle = 'Authors we think you\'ll like';
 
-  let listItems = null;
-  if(authors != null) {
-    listItems = authors.map((author, index, arr) => {
-      let html;
-      let authorname = <div class='col-4 px-5 authorname text-center align-self-center' style={{fontFamily: randomFonts[index], left: index%2==0?'1em':'-0.5em'}}>{author[0].AuthorName}</div>;
-      let books = <div class='col-8'><BookList books={author} faceLeft={index%2 == 0} onSummary={onSummary}/></div>;
+//   let listItems = null;
+//   if(authors != null) {
+//     listItems = authors.map((author, index, arr) => {
+//       let html;
+//       let authorname = <div class='authorname text-center align-self-center pb-5' style={{fontFamily: 'fairyb'}}>{author[0].AuthorName}</div>;
+//       let books = <div class='col'><BookList books={author} onSummary={onSummary}/></div>;
       
-      if(index % 2 == 0) {
-        html = 
-          <div class='row my-0 py-4'>
-            {authorname}
-            {books}
-          </div>;
-      } else {
-        html = 
-          <div class='row my-0 py-4'>
-            {books}
-            {authorname}
-          </div>;
-      }
-      return html;
-    })
-  }
 
-  let html = null;
-  if(authors != null) {
-    html =
-    <div id='authors' class='container'>
-      <div class='row p-4 m-0 mb-5 justify-content-center align-items-center'>
-        <div class='fancy header'>{defaultHeader}</div>
-        <div class='divider text-center m-2'>|</div>
-        <div class='fancy subtitle'>{defaultSubtitle}</div>
-      </div>
-      {listItems}
-    </div>
-  }
-  return html;
-}
+//         html = 
+//           <div class='my-0 py-4'>
+//             {authorname}
+//             {books}
+//           </div>;
 
-function Footer({authors}) {
-  let className = 'page-footer row fancy bar align-items-center mx-0 mb-0 p-2'.concat(authors == null ? ' fixed-bottom' : null);
+//       return html;
+//     })
+//   }
+
+//   let html = null;
+//   if(authors != null) {
+//     html =
+//     <div id='authors' class='container justify-content-center'>
+//       <div class='row p-4 m-0 mb-5 justify-content-center align-items-center'>
+//         <div class='fancy header'>{defaultHeader}</div>
+//         <div class='divider text-center m-2'>|</div>
+//         <div class='fancy subtitle'>{defaultSubtitle}</div>
+//       </div>
+//       {listItems}
+//     </div>
+//   }
+//   return html;
+// }
+
+function Footer() {
+  let className = 'page-footer row fancy bar align-items-center mx-0 mb-0 p-2'.concat(true ? ' fixed-bottom' : null);
   return (
       <div class={className}>
         <div class='col p-0 m-0'>Author: Joe Vermander</div>
