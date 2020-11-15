@@ -247,7 +247,8 @@ function Carousel({isLogged, username, recommendations, popular, onSummary}) {
   const [header, setHeader] = useState(genericHeader);
   const [subtitle, setSubtitle] = useState(genericSubtitle);
   const [index, setIndex] = useState(0);
-
+  
+  const [rightClicked, setRightClicked] = useState(null);
 
   // On login/logout
   useEffect(() => {
@@ -259,21 +260,67 @@ function Carousel({isLogged, username, recommendations, popular, onSummary}) {
         setHeader(genericHeader);
         setSubtitle(genericSubtitle);
     }
+    setTimeout(() => {
+      document.getElementById('headercontainer').style.animation = 'fadeIn 500ms';
+      document.getElementById('headercontainer').style.visibility = 'visible';
+    }, 200);
   }, [isLogged, index])
 
   const clickRight = () => {
-    setIndex((index+1) % recommendations.length);
+    let newIndex = (index+1) % recommendations.length;
+    if(index == 0 || newIndex == 0) {
+      document.getElementById('headercontainer').style.animation = 'fadeOut 500ms';
+      document.getElementById('headercontainer').style.visibility = 'hidden';
+    }
+
+    let booklist = document.getElementById('booklist');
+    booklist.style.animationName = 'fadeOutLeft';
+    booklist.style.animationDuration = '500ms';
+    booklist.style.animationTimingFunction = 'ease-in';
+    booklist.style.visibility = 'hidden';
+    setTimeout(() => {
+      setIndex(newIndex);
+      setRightClicked(true);
+    }, 500);
   }
 
   const clickLeft = () => {
-    let l = recommendations.length
-    setIndex( (((index-1) % l) + l) % l );
+    let l = recommendations.length;
+    let newIndex = (((index-1) % l) + l) % l;
+    if(index == 0 || newIndex == 0) {
+      document.getElementById('headercontainer').style.animation = 'fadeOut 500ms';
+      document.getElementById('headercontainer').style.visibility = 'hidden';
+    }
+
+    let booklist = document.getElementById('booklist');
+    booklist.style.animationName = 'fadeOutRight';
+    booklist.style.animationDuration = '500ms';
+    booklist.style.animationTimingFunction = 'ease-in';
+    booklist.style.visibility = 'hidden';
+    setTimeout(() => {
+      setIndex(newIndex);
+      setRightClicked(false);
+    }, 500);
+
   }
+
+  useEffect(() => {
+    let booklist = document.getElementById('booklist');
+    if(booklist.style.visibility == 'hidden') {
+      setTimeout(() => {
+        if(rightClicked)
+          booklist.style.animation = 'fadeInRight 500ms ease-out';
+        else
+          booklist.style.animation = 'fadeInLeft 500ms ease-out';
+        booklist.style.visibility = 'visible';
+      }, 200);
+    }
+  });
 
   let className = 'col'.concat(isLogged && recommendations !== popular ? ' fadein' : null);
   return (
     <div class={className}>
-      <div class='row p-4 m-0 justify-content-center align-items-center'>
+      <div id='headercontainer' class='row p-4 m-0 justify-content-center align-items-center'>
         <div class='fancy header'>{header}</div>
         <div class='divider text-center m-2'>|</div>
         <div class='fancy subtitle'>{subtitle}</div>
@@ -346,7 +393,7 @@ function BookList({books, faceLeft=true, onSummary, showAuthor}) {
   }, [showAuthor, books])
 
   return(
-    <div class='container m-0 justify-self-center'>
+    <div  id='booklist'  class='container m-0 justify-self-center'>
       <div class='row justify-content-center'>
         <div class='col-1'></div>
         {listItems}

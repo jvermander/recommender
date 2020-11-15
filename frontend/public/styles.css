@@ -36,6 +36,10 @@ html {
   text-shadow: 4px 4px 15px black;
 }
 
+#booklist {
+  transition: 500ms linear;
+}
+
 .carouselBtn {
   font-size: 128px;
   line-height: 128px;
@@ -46,6 +50,55 @@ html {
   position: relative;
   user-select: none;
 }
+
+@keyframes fadeOutLeft {
+  from {
+    opacity: 1; 
+    visibility: visible;
+   }
+  to {
+    transform: translateX(-10%);
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes fadeOutRight {
+  from {
+    opacity: 1; 
+    visibility: visible;
+   }
+  to {
+    transform: translateX(10%);
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    transform: translateX(-10%);
+    opacity: 0;
+    visibility: hidden;
+  } to { 
+    transform: translateX(0%);
+    opacity: 1; 
+    visibility: visible;
+  }
+}
+
+@keyframes fadeInRight {
+  from {
+    transform: translateX(10%);
+    opacity: 0;
+    visibility: hidden;
+  } to { 
+    transform: translateX(0%);
+    opacity: 1; 
+    visibility: visible;
+  }
+}
+
 
 @font-face {
   font-family: lick;
@@ -78,6 +131,7 @@ html {
   line-height: 1em;
   bottom: 1.65em;
 }
+
 .bookname {
   display: block; 
   font-size: 2em;
@@ -169,14 +223,33 @@ html {
   src: url('assets/Occult.ttf')
 }
 
-
 .fadein {
-  animation: fadeIn ease-in 3s;
+  animation: fadeIn ease-in 1.5s;
 }
 
-@keyframes fadeIn {
-  0% {opacity: 0;}
-  100% {opacity: 1;}
+.fadeout {
+  animation: fadeOut 1.5s;
+}
+
+@keyframes fadeOut{
+  from {
+    opacity: 1;
+    visibility: visible;
+  } to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+
+@keyframes fadeIn{
+  from {
+    opacity: 0;
+    visibility: hidden;
+  } to { 
+    opacity: 1; 
+    visibility: visible;
+  }
 }
 
 .loadingScreen {
