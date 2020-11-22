@@ -6,34 +6,91 @@ function Recommender({popular, onload}) {
   const [isLogged, setIsLogged] = useState(false);
   const [username, setUsername] = useState(null);
   const [recommendations, setRecommendations] = useState(popular);
+  const [ratings, setRatings] = useState(null);
 
+  const [focusedId, setFocusedId] = useState('landing');
   const [focusedBook, setFocusedBook] = useState(null);
 
   const onLogin = (username, arr) => {
-    if(arr.length > 0)
-      setRecommendations(arr);
-    setUsername(username);
-    setIsLogged(true);
+    contentTransition(() => {
+      if(arr.length > 0)
+        setRatings(arr[0])
+      if(arr.length > 1)
+        setRecommendations(arr.slice(1));
+      setUsername(username);
+      setIsLogged(true);
+      
+      console.log(arr);
 
-    if(arr.length > 0) {
-      console.log("Recommendations:");
-      console.log(arr[0]);
-      if(arr.length > 1) {
-        console.log("Authors:");
-        console.log(arr.slice(1));
+      if(arr.length > 0) {
+        console.log("Ratings: ");
+        console.log(arr[0])
       }
-    }
+      if(arr.length > 1) {
+        console.log("Recommendations:");
+        console.log(arr[1]);
+      }
+      if(arr.length > 2) {
+        console.log("Authors:");
+        console.log(arr.slice(2));
+      }
+      setFocusedId('recommendation');
+    })
   }
 
   const onLogout = () => {
-    setUsername(null);
-    setRecommendations(popular);
-    setIsLogged(false);
+    contentTransition(() => {
+      setUsername(null);
+      setIsLogged(false);
+      setRecommendations(popular);
+      setRatings(null);
+      setFocusedId('landing');
+    });
   }
 
   const onSummary = (book) => {
     setFocusedBook(book);
   }
+
+  const toRecommendation = () => {
+    if(focusedId != 'recommendation') {
+      contentTransition(() => {
+        setFocusedId('recommendation');
+      });
+    }
+  }
+
+  const toRatings = () => {
+    if(focusedId != 'ratings') {
+      contentTransition(() => {
+        setFocusedId('ratings');
+      });
+    }
+  }
+
+  const toSearch = () => {
+    if(focusedId != 'search') {
+      contentTransition(() => {
+        setFocusedId('search');
+      })
+    }
+  }
+
+  const contentTransition = (func) => {
+    document.getElementById(focusedId).classList.add('fadeoutfast');
+    setTimeout(() => {
+      func();
+      document.getElementById(focusedId).classList.remove('fadeoutfast');
+    }, 500)
+  }
+
+  useEffect(() => {
+    console.log(focusedId);
+    document.getElementById(focusedId).classList.add('fadeinfast');
+    setTimeout(() => {
+      document.getElementById(focusedId).classList.remove('fadeinfast');
+    }, 500)
+  }, [focusedId])
 
   useEffect(() => {
     onload();
@@ -41,10 +98,176 @@ function Recommender({popular, onload}) {
 
   return(
     <div class='container-fluid text-center p-0 m-0'>
-      <Navbar onLogin={onLogin} onLogout={onLogout}/>
-      <Carousel isLogged={isLogged} username={username} recommendations={recommendations} popular={popular} onSummary={onSummary}/>
+      <Navbar onLogin={onLogin} onLogout={onLogout} toRatings={toRatings} toRecommendation={toRecommendation} toSearch={toSearch}/>
+      <Landing popular={popular} onSummary={onSummary} focusedId={focusedId}/>
+      <Recommendation recommendations={recommendations} username={username} hasRated={ratings != null} onSummary={onSummary} focusedId={focusedId}/>
+      <Ratings ratings={ratings} onSummary={onSummary} focusedId={focusedId}/>
+      <Search username={username} onSummary={onSummary} focusedId={focusedId}/>
       <Footer/>
       <BookModal book={focusedBook} onSummary={onSummary}/>
+    </div>
+  );
+}
+
+function Landing({popular, onSummary, focusedId}) {
+  const id = 'landing';
+  const listId = 'landinglist'
+  const header = 'Need a book to read?';
+  const subtitle = 'Rate books, get recommendations! Here are some popular titles.';
+
+  return(
+    <div id={id} class='container-fluid' style={{display: focusedId == id? 'block' : 'none'}}>
+      <Header header={header} subtitle={subtitle}/>
+      <Carousel content={popular} id={listId} onSummary={onSummary}/>
+    </div>
+  );
+}
+
+function Recommendation({recommendations, username, hasRated, onSummary, focusedId}) {
+  const id = 'recommendation';
+  const listId = 'recommendationlist'
+  
+  const authorsHeader = 'Your Author List';
+  const authorsSubtitle = 'Authors we think you\'ll like';
+  const ratedSubtitle = 'What similar users are reading';
+  const unratedSubtitle = 'Try rating some books to get special recommendations!';
+
+  const [header, setHeader] = useState(null);
+  const [subtitle, setSubtitle] = useState(null);
+
+  const onIndexChange = (oldIndex, newIndex) => {
+    if(oldIndex == 0) {
+      document.getElementById('recheader').classList.add('fadeoutfast');
+      setTimeout(() => {
+        document.getElementById('recheader').classList.remove('fadeoutfast');
+        setHeader(authorsHeader);
+        setSubtitle(authorsSubtitle);
+      }, 500);
+    } else if(newIndex == 0) {
+      document.getElementById('recheader').classList.add('fadeoutfast');
+      setTimeout(() => {
+        document.getElementById('recheader').classList.remove('fadeoutfast');
+        setHeader('Welcome ' + username + '!');
+        setSubtitle(hasRated? ratedSubtitle : unratedSubtitle);
+      }, 500);
+    };
+  }
+
+  useEffect(() => {
+    document.getElementById('recheader').classList.add('fadeinfast');
+    setTimeout(() => {
+      document.getElementById('recheader').classList.remove('fadeinfast');
+    }, 500);
+  }, [header]);
+
+  useEffect(() => {
+    setHeader('Welcome ' + username + '!');
+    setSubtitle(hasRated? ratedSubtitle : unratedSubtitle);
+  }, [username, hasRated]);
+
+
+  return(
+    <div id={id} class='container-fluid' style={{display: focusedId == id? 'block' : 'none'}}>
+      <div id='recheader'>
+        <Header header={header} subtitle={subtitle}/>
+      </div>
+      {username != null? <Carousel content={recommendations} id={listId} onSummary={onSummary} showAuthor={true} onIndexChange={onIndexChange}/> : null}
+    </div>
+  );
+}
+
+const makeSlice = (ratings, n=5) => {
+  let i = 0;
+  let j = 0;
+  let result = [];
+  while(i < ratings.length) {
+    j = i + n;
+    result.push(ratings.slice(i, j));
+    i = j;
+  }
+  return result;
+};
+
+function Ratings({ratings, onSummary, focusedId}) {
+  const id = 'ratings';
+  const listId = 'ratingslist';
+
+  const header = 'Your ratings';
+  const ratedSubtitle = 'What you\'ve already read';
+  const unratedSubtitle = 'You have none!';
+
+  const [content, setContent] = useState(null);
+
+  useEffect(() => {
+    if(ratings != null)
+      setContent(makeSlice(ratings));
+    else
+      setContent(null);
+  }, [ratings]);
+
+  return (
+    <div id={id} class='container-fluid' style={{display: focusedId == id? 'block' : 'none'}}>
+      <Header header={header} subtitle={ratedSubtitle}/>
+      {content != null? <Carousel content={content} id={listId} onSummary={onSummary}/> : 
+       <div class='pt-5 mt-5' style={{fontFamily: 'fairy', fontSize: '100px', color: 'white', opacity: 0.5}}>
+         You have no ratings!
+       </div>}
+    </div>
+  );
+  
+}
+
+function Search({username, onSummary, focusedId}) {
+  const id = 'search';
+  const listId = 'searchlist';
+  const [content, setContent] = useState(null);
+
+  const [header, setHeader] = useState('Book Search');
+  const [subtitle, setSubtitle] = useState('Find books to rate');
+
+  const makeQuery = async() => {
+    let querytext = document.getElementById('querytext');
+    console.log(querytext.value);
+    let postobj = {tok: querytext.value, usr: username}
+    let reply = await axios.post('search.php', postobj);
+    setContent(makeSlice(reply.data));
+  }
+
+  let html;
+  if(content != null) {
+    html =
+      <div id={id} class='container-fluid align-items-center' style={{display: focusedId == id? 'block' : 'none'}}>
+        <Header header={header} subtitle={subtitle}></Header>
+        <Carousel content={content} id={listId} onSummary={onSummary}/>
+      </div>
+  } else {
+    html = 
+      <div id={id} class='container-fluid justify-content-center' style={{display: focusedId == id? 'block' : 'none'}}>
+        <Header header={header} subtitle={subtitle}></Header>
+        <div class='row'>
+          <div class='col-3'></div>
+          <div class='col-6 pt-5 mt-5 justify-self-center'>
+            <div class='row justify-content-center'>
+              <input id='querytext' class='col booksearchbar' type='text' placeholder='Search by title, author or ISBN'></input>
+            </div>
+            <div class='row '>
+              <div class='col-1 searchBtn floating m-0 p-0' onClick={makeQuery}>&gt;</div>  
+            </div>
+          </div>
+          <div class='col-3'></div>
+        </div>
+      </div>
+  }
+
+  return html;
+}
+
+function Header({header, subtitle}) {
+  return(
+    <div class='row p-4 m-0 justify-content-center align-items-center'>
+      <div class='fancy header'>{header}</div>
+      <div class='divider text-center m-2'>|</div>
+      <div class='fancy subtitle'>{subtitle}</div>
     </div>
   );
 }
@@ -59,7 +282,7 @@ function BookModal({book, onSummary}) {
     let stringContent = 
     <div class="modalText" style={{fontSize: '26px', fontFamily: 'fairy', lineHeight: '2em', }}>
     <div><span>Title</span> • <span>{book.Title}</span></div>
-    <div><span>Author</span> • <span>{book.AuthorName}</span></div>
+    <div><span>Author</span> • <span>{book.Author}</span></div>
     <div><span>Year Published</span> • <span>{book.YearPublished}</span></div>
     <div><span>Publisher</span> • <span>{book.Publisher}</span></div>
     <div><span>ISBN</span> • <span>{book.ISBN}</span></div>
@@ -94,7 +317,7 @@ function BookModal({book, onSummary}) {
   );
 }
 
-function Navbar({onLogin, onLogout}) {
+function Navbar({onLogin, onLogout, toRatings, toRecommendation, toSearch}) {
   const [isLogged, setIsLogged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -223,127 +446,90 @@ function Navbar({onLogin, onLogout}) {
   } else {
       html = 
         <div>
-          <button class='btn btn-dark mr-1'>Rate Books</button>
-          <button class='btn btn-dark mr-1'>Your Books</button>
+          <button class='btn btn-dark mr-1' onClick={toRecommendation}>My Recommendations</button>
+          <button class='btn btn-dark mr-1' onClick={toSearch}>Search Books</button>
+          <button class='btn btn-dark mr-1' onClick={toRatings}>My Ratings</button>
           <button class='btn btn-dark' onClick={handleLogout}>Logout</button>
         </div>
   }
   return (
     <div class='navbar bar sticky-top p-2 mt-2 text-left'>
-      <div class='col m-0 p-0'><a href="#root"><img class='mx-2' height='auto' width='50px' src='assets/logo2.png'></img></a></div>
+      <div class='col m-0 p-0'><a href="#"><img class='mx-2' height='auto' width='50px' src='assets/logo2.png'></img></a></div>
       {html} 
     </div>);
 }
 
-function Carousel({isLogged, username, recommendations, popular, onSummary}) {
-  const genericHeader = 'Need a book to read?';
-  const genericSubtitle = 'Rate books, get recommendations! Here are some popular titles.';
 
-  const userSubtitle = 'What similar users are currently reading';
-
-  const authorsHeader = 'Your Author List';
-  const authorsSubtitle = 'Authors we think you\'ll like';
-
-  const [header, setHeader] = useState(genericHeader);
-  const [subtitle, setSubtitle] = useState(genericSubtitle);
+// Expects an array of arrays
+function Carousel({content, id, showAuthor=false, onIndexChange=null, onSummary}) {
   const [index, setIndex] = useState(0);
-  
   const [rightClicked, setRightClicked] = useState(null);
 
-  // On login/logout
-  useEffect(() => {
-    if(isLogged) {
-        setHeader(index == 0 ? 'Welcome ' + username + '!' : authorsHeader);
-        setSubtitle(index == 0 ? userSubtitle : authorsSubtitle);
-    } else {
-        setIndex(0);
-        setHeader(genericHeader);
-        setSubtitle(genericSubtitle);
-    }
-    setTimeout(() => {
-      document.getElementById('headercontainer').style.animation = 'fadeIn 500ms';
-      document.getElementById('headercontainer').style.visibility = 'visible';
-    }, 200);
-  }, [isLogged, index])
-
   const clickRight = () => {
-    let newIndex = (index+1) % recommendations.length;
-    if(index == 0 || newIndex == 0) {
-      document.getElementById('headercontainer').style.animation = 'fadeOut 500ms';
-      document.getElementById('headercontainer').style.visibility = 'hidden';
-    }
+    let booklist = document.getElementById(id);
+    booklist.classList.add('fadeoutleft');
 
-    let booklist = document.getElementById('booklist');
-    booklist.style.animationName = 'fadeOutLeft';
-    booklist.style.animationDuration = '500ms';
-    booklist.style.animationTimingFunction = 'ease-in';
-    booklist.style.visibility = 'hidden';
+    let newIndex = (index+1) % content.length;
+    if(onIndexChange != null) 
+      onIndexChange(index, newIndex);
     setTimeout(() => {
       setIndex(newIndex);
-      setRightClicked(true);
     }, 500);
   }
 
   const clickLeft = () => {
-    let l = recommendations.length;
-    let newIndex = (((index-1) % l) + l) % l;
-    if(index == 0 || newIndex == 0) {
-      document.getElementById('headercontainer').style.animation = 'fadeOut 500ms';
-      document.getElementById('headercontainer').style.visibility = 'hidden';
-    }
+    let booklist = document.getElementById(id);
+    booklist.classList.add('fadeoutright');
 
-    let booklist = document.getElementById('booklist');
-    booklist.style.animationName = 'fadeOutRight';
-    booklist.style.animationDuration = '500ms';
-    booklist.style.animationTimingFunction = 'ease-in';
-    booklist.style.visibility = 'hidden';
+    let l = content.length;
+    let newIndex = (((index-1) % l) + l) % l;
+    if(onIndexChange != null)
+      onIndexChange(index, newIndex);
     setTimeout(() => {
       setIndex(newIndex);
-      setRightClicked(false);
     }, 500);
-
   }
 
   useEffect(() => {
-    let booklist = document.getElementById('booklist');
-    if(booklist.style.visibility == 'hidden') {
+    let booklist = document.getElementById(id);
+    if(booklist.classList.contains('fadeoutleft')) {
+      booklist.classList.remove('fadeoutleft');
+      booklist.classList.add('fadeinright');
       setTimeout(() => {
-        if(rightClicked)
-          booklist.style.animation = 'fadeInRight 500ms ease-out';
-        else
-          booklist.style.animation = 'fadeInLeft 500ms ease-out';
-        booklist.style.visibility = 'visible';
-      }, 200);
+        booklist.classList.remove('fadeinright');
+      }, 500);
+    } else if(booklist.classList.contains('fadeoutright')) {
+      booklist.classList.remove('fadeoutright');
+      booklist.classList.add('fadeinleft');
+      setTimeout(() => {
+        booklist.classList.remove('fadeinleft');
+      }, 500);
     }
-  });
+  }, [index]);
 
-  let className = 'col'.concat(isLogged && recommendations !== popular ? ' fadein' : null);
+  useEffect(() => {
+    setIndex(0);
+  }, [content]);
+
   return (
-    <div class={className}>
-      <div id='headercontainer' class='row p-4 m-0 justify-content-center align-items-center'>
-        <div class='fancy header'>{header}</div>
-        <div class='divider text-center m-2'>|</div>
-        <div class='fancy subtitle'>{subtitle}</div>
-      </div>
-      <div class='row m-0 justify-content-center'>
-        <div class='col align-items-top m-0 p-0 justify-content-right'>
-          <div style={{position: 'relative', top: '12.5vh'}} class='row justify-content-center'>
-            <div class='carouselBtn p-0' onClick={clickLeft} style={{display: isLogged ? 'flex' : 'none'}}>&lt;</div>
-          </div>
+    <div class='row m-0 justify-content-center'>
+      <div class='col align-items-top m-0 p-0 justify-content-right'>
+        <div style={{position: 'relative', top: '12.5vh'}} class='row justify-content-center'>
+          <div class='carouselBtn p-0' onClick={clickLeft} style={{display: content.length > 1? 'flex' : 'none'}}>&lt;</div>
         </div>
-        <BookList books={recommendations[isLogged? index : 0]} onSummary={onSummary} showAuthor={isLogged? index != 0: false}/>
-        <div class='col align-items-top m-0 p-0'>
-          <div style={{position: 'relative', top: '12.5vh'}} class='row justify-content-center'>
-            <div class='carouselBtn p-0' onClick={clickRight} style={{display: isLogged ? 'flex' : 'none'}}>&gt;</div>
-          </div>
+      </div>
+      <BookList id={id} books={content[index]} onSummary={onSummary} showAuthor={showAuthor && index != 0}/>
+      <div class='col align-items-top m-0 p-0'>
+        <div style={{position: 'relative', top: '12.5vh'}} class='row justify-content-center'>
+          <div class='carouselBtn p-0' onClick={clickRight} style={{display: content.length > 1? 'flex' : 'none'}}>&gt;</div>
         </div>
       </div>
     </div>
   );
 }
 
-function BookList({books, faceLeft=true, onSummary, showAuthor}) {
-  const [title, setTitle] = useState(showAuthor ? books[0].AuthorName : '-');
+function BookList({books, id, faceLeft=true, onSummary, showAuthor}) {
+  const [title, setTitle] = useState(showAuthor ? books[0].Author : '-');
   const [opacity, setOpacity] = useState(showAuthor ? 1: 0);
   const [font, setFont] = useState('fairy');
   const [fontSize, setFontSize] = useState('2em');
@@ -355,7 +541,7 @@ function BookList({books, faceLeft=true, onSummary, showAuthor}) {
       setOpacity(string == null ? 0 : 1);
       if(string == null) {
         if(showAuthor) {
-          setTitle(books[0].AuthorName);
+          setTitle(books[0].Author);
           setOpacity(1);
           setFont('fairyb');
           setFontSize('3em');
@@ -383,7 +569,7 @@ function BookList({books, faceLeft=true, onSummary, showAuthor}) {
 
   useEffect(() => {
     if(showAuthor) {
-      setTitle(books[0].AuthorName);
+      setTitle(books[0].Author);
       setOpacity(1);
       setFont('fairyb');
       setFontSize('3em');
@@ -393,7 +579,7 @@ function BookList({books, faceLeft=true, onSummary, showAuthor}) {
   }, [showAuthor, books])
 
   return(
-    <div  id='booklist'  class='container m-0 justify-self-center'>
+    <div id={id} class='container m-0 justify-self-center'>
       <div class='row justify-content-center'>
         <div class='col-1'></div>
         {listItems}
@@ -429,61 +615,6 @@ function Book({margin, book, faceLeft, onHover, onSummary}) {
            style={{marginTop: margin, marginLeft: '-2vw'}} height='100%' width='150%'/>
   );
 }
-
-// Random fancy author name fonts
-const FONTS = ['fairyb', 'mephisto', 'k22', 'alice', 'wonderland', 'nightmare', 'blkchcry', 'achaf'];
-var randomFonts = getRandomFonts();
-
-function getRandomFonts(n=5) {
-  let fonts = [];
-  for(var i = 0; i < n; i++) {
-    let min = 0;
-    let max = FONTS.length-1;
-
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    let i = Math.floor(Math.random() * (max - min + 1)) + min;
-    fonts.push(FONTS[i]);
-  }
-  return fonts;
-}
-
-// function Authors({authors, onSummary}) {
-//   const defaultHeader = 'Your Author List';
-//   const defaultSubtitle = 'Authors we think you\'ll like';
-
-//   let listItems = null;
-//   if(authors != null) {
-//     listItems = authors.map((author, index, arr) => {
-//       let html;
-//       let authorname = <div class='authorname text-center align-self-center pb-5' style={{fontFamily: 'fairyb'}}>{author[0].AuthorName}</div>;
-//       let books = <div class='col'><BookList books={author} onSummary={onSummary}/></div>;
-      
-
-//         html = 
-//           <div class='my-0 py-4'>
-//             {authorname}
-//             {books}
-//           </div>;
-
-//       return html;
-//     })
-//   }
-
-//   let html = null;
-//   if(authors != null) {
-//     html =
-//     <div id='authors' class='container justify-content-center'>
-//       <div class='row p-4 m-0 mb-5 justify-content-center align-items-center'>
-//         <div class='fancy header'>{defaultHeader}</div>
-//         <div class='divider text-center m-2'>|</div>
-//         <div class='fancy subtitle'>{defaultSubtitle}</div>
-//       </div>
-//       {listItems}
-//     </div>
-//   }
-//   return html;
-// }
 
 function Footer() {
   let className = 'page-footer row fancy bar align-items-center mx-0 mb-0 p-2'.concat(true ? ' fixed-bottom' : null);

@@ -110,11 +110,26 @@ html {
   src: url('assets/BEOWULF_MODERN.ttf')
 }
 
-.carouselBtn:hover {
+.searchBtn {
+  background: transparent;
+  border: none;
+  font-size: 128px;
+  color: white;
+  outline: none;
+  line-height: 128px;
+  font-family: lick;
+  cursor: pointer;
+  padding: 0;
+
+  position: relative;
+  user-select: none;
+}
+
+.carouselBtn:hover, .searchBtn:hover {
   color: grey;
 }
 
-.carouselBtn:active {
+.carouselBtn:active, .searchBtn:active {
   color: black;
 }
 
@@ -223,12 +238,73 @@ html {
   src: url('assets/Occult.ttf')
 }
 
+.booksearchbar {
+  opacity: 1;
+  color: white;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 72px;
+  font-family: fairy;
+  border-bottom: 1px solid white;
+}
+
+.floating {
+  animation: float 0.75s infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateX(0%);
+  } 
+  
+  50% {
+    transform: translateX(10%);
+  }
+
+  100% {
+    transform: translateX(0%);
+  }
+}
+
 .fadein {
-  animation: fadeIn ease-in 1.5s;
+  animation: fadeIn 1s ease-out;
+  visibility: visible;
 }
 
 .fadeout {
-  animation: fadeOut 1.5s;
+  animation: fadeOut 1s ease-in;
+  visibility: hidden;
+}
+
+.fadeinfast {
+  animation: fadeIn 500ms ease-out;
+  visibility: visible;
+}
+
+.fadeoutfast {
+  animation: fadeOut 500ms ease-in;
+  visibility: hidden;
+}
+
+.fadeoutleft {
+  animation: fadeOutLeft 500ms ease-in;
+  visibility: hidden;
+}
+
+.fadeoutright {
+  animation: fadeOutRight 500ms ease-in;
+  visibility: hidden;
+}
+
+.fadeinleft {
+  animation: fadeInLeft 500ms ease-in;
+  visibility: visible;
+}
+
+.fadeinright {
+  animation: fadeInRight 500ms ease-in;
+  visibility: visible;
 }
 
 @keyframes fadeOut{
@@ -240,6 +316,7 @@ html {
     visibility: hidden;
   }
 }
+
 
 
 @keyframes fadeIn{

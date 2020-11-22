@@ -120,24 +120,16 @@ def load_model( path='models/impALS/' ):
          book_lookup, auth_lookup, user_lookup
 
 #todo: remove debugging
-def recommend_for( user, debug=False ):
-  if(debug):
-    print("User %d's ratings: " % user)
+def recommend_for( user, n=5 ):
   user_ratings = get_user_ratings(user)
-  if(debug):
-    print(user_ratings)
   if(user_ratings.shape[0] < 1):
     return '[]'
-  # print(rank_authors(user, user_ratings.AID))
 
   candidate_aids = pd.Series(name='AID')
   candidate_aids = candidate_aids.append(recommend_authors_by_item(user))
   candidate_aids = candidate_aids.append(recommend_authors_by_item_cosine(user))
   candidate_aids = candidate_aids.append(recommend_authors_by_user(user))
-
   author_ranking = rank_authors(user, candidate_aids)
-  if(debug):
-    print(author_ranking)
 
   candidate_bids = pd.Series(name='BID')
   candidate_bids = candidate_bids.append(recommend_books_by_author(author_ranking))
@@ -145,48 +137,33 @@ def recommend_for( user, debug=False ):
   candidate_bids = candidate_bids.append(recommend_books_by_item_cosine(user))
   candidate_bids = candidate_bids.append(recommend_books_by_user(user))
   candidate_bids = remove_already_read(user_ratings, candidate_bids)
-
-  book_scores = score_by_book(user, candidate_bids)
-  aids = lookup_books(candidate_bids).AID
-  auth_scores = score_by_author(user, aids)
-  book_ranking = rank_books(book_scores, auth_scores)
-  recommended_books = book_ranking[:5]
-
-  if(debug):
-    print(book_ranking[:30])
-  # print(book_ranking[30:60])
+  book_ranking = rank_books(user, candidate_bids)
+  
+  book_recommendation = book_ranking[:n]
 
   bids = recommend_books_by_author(author_ranking)
-  available_lookup = bids[(~bids.isin(recommended_books.BID)) & (~bids.isin(user_ratings.BID))]
+  available_lookup = bids[(~bids.isin(book_recommendation.BID)) & (~bids.isin(user_ratings.BID))]
   available_lookup = lookup_books(available_lookup)
   counts = available_lookup.AID.value_counts()
   recommended_authors = author_ranking[author_ranking.AID.isin(counts.index)]
-  recommended_authors = recommended_authors[:5]
+  recommended_authors = recommended_authors[:n]
   recommended_authors.reset_index(drop=True, inplace=True)
-  author_books = recommend_books_for_each_author(user, recommended_authors, available_lookup)
+  
+  author_recommendation = recommend_books_for_each_author(user, recommended_authors, available_lookup)
 
-  if(debug):
-    print(recommended_books)  
-    print(author_books)
-
-  json = to_json(recommended_books, author_books)
-
+  json = to_json(user_ratings, book_recommendation, author_recommendation)
   return json
 
-def to_json( recommended_books, author_books ):
-  recommended_books = recommended_books[['BID', 'AuthorName']]
-  recommended_books = recommended_books.merge(book_lookup, on='BID', how='left')
-  recommended_books.drop(columns=['AID', 'BID'], inplace=True)
-  recommended_books = recommended_books.to_json(orient='records')
+def to_json( ratings, books, authors ):
+  columns = ['Title', 'Author', 'ISBN', 'Publisher', 'YearPublished', 'ImageURLL']
 
-  json = "[" + recommended_books
-  for i in range(len(author_books)):
+  ratings = ratings[columns + ['Score']].to_json(orient='records')
+  books = books[columns].to_json(orient='records')
+
+  json = "[" + ratings + ", " + books
+  for i in range(len(authors)):
     json += ", "
-    author_books[i] = author_books[i][['BID', 'AuthorName']]
-    author_books[i] = author_books[i].merge(book_lookup, on='BID', how='left')
-    author_books[i].drop(columns=['AID', 'BID'], inplace=True)
-    temp = author_books[i].to_json(orient='records')
-    # print(temp)
+    temp = authors[i][columns].to_json(orient='records')
     json += temp
   json += "]"
 
@@ -194,18 +171,12 @@ def to_json( recommended_books, author_books ):
 
 def get_user_ratings( user ):
   book_ratings = lookup_books(all_book_ratings[all_book_ratings.UID == user])
-  auth_ratings = lookup_authors(all_auth_ratings[all_auth_ratings.UID == user])
-  user_ratings = book_ratings.merge(auth_ratings, on='AID', how='left')
-  user_ratings.drop(columns=['UID_y', 'AuthorName_y'], inplace=True)
-  user_ratings.rename(columns={'UID_x':'UID', 'Score_x':'BookScore', 'Score_y':'AuthScore', 'AuthorName_x':'AuthorName'}, inplace=True)
-  return user_ratings
+  return book_ratings
 
 def lookup_books( bids ):
   bids = pd.DataFrame(bids)
   summary = bids.merge(book_lookup, on='BID', how='left')
   summary = summary.merge(auth_lookup, on='AID', how='left')
-  summary.drop(inplace=True, 
-               columns=['YearPublished', 'Publisher', 'ImageURLS', 'ImageURLM', 'ImageURLL'])
   return summary
 
 def lookup_authors( aids ):
@@ -224,9 +195,9 @@ def recommend_authors_by_item( user, thres=4.0, n=5 ):
     result += auth_model.similar_items(aids[i], N=n, react_users=csr.transpose())
 
   result = [x for x,_ in result]
-  result = pd.Series(result, name='AID')
+  aids = pd.Series(result, name='AID')
 
-  return result
+  return aids
 
 def recommend_authors_by_item_cosine( user, thres=4.0, n_similar=5 ):
   user_ratings = all_auth_ratings[all_auth_ratings.UID == user]
@@ -234,10 +205,10 @@ def recommend_authors_by_item_cosine( user, thres=4.0, n_similar=5 ):
   csr = get_auths_csr().transpose()
   similarities = pd.DataFrame(cosine_similarity(csr, csr[top_ratings.AID]))
 
-  ids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
-  ids = pd.Series(ids.flatten(), name='AID')
+  aids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
+  aids = pd.Series(aids.flatten(), name='AID')
 
-  return ids
+  return aids
 
 def recommend_authors_by_user( user, thres=4.0, n=5 ):
   uids = auth_model.similar_users(user, N=n)
@@ -249,25 +220,21 @@ def recommend_authors_by_user( user, thres=4.0, n=5 ):
 
   return aids
 
-def rank_books( book_scores, auth_scores ):
+def rank_books( user, bids ):
+  book_scores = score_by_book(user, bids)
   count = book_scores.groupby('BID').count()
   count.columns = ['Count']
   book_scores.drop_duplicates('BID', inplace=True)
-  auth_scores.drop_duplicates('AID', inplace=True)
 
   ranking = lookup_books(book_scores)
-  ranking = ranking.merge(auth_scores, on='AID', how='left')
   ranking = ranking.merge(count, on='BID', how='left')
   
-  ranking['Overall'] = (ranking['Count'] * ranking['BookScore'])
-  ranking = ranking[['BID', 'AID', 'ISBN', 'Title', 'AuthorName', \
-                     'Count', 'BookScore', 'AuthScore', 'Overall']]
   ranking.sort_values(['Count', 'BookScore'], ascending=False, inplace=True)
   ranking.reset_index(drop=True, inplace=True)
   return ranking
 
-def rank_authors( user, ids, thres=0.03 ):
-  counts = pd.DataFrame(ids.value_counts())
+def rank_authors( user, aids, thres=0.03 ):
+  counts = pd.DataFrame(aids.value_counts())
   counts.reset_index(inplace=True)
   counts.columns = ['AID', 'Count']
 
@@ -287,8 +254,8 @@ def recommend_books_by_author( aids, pool=None ):
   else:
     lookup = pool
   aids = pd.DataFrame(aids)
-  summary = aids.merge(lookup, on='AID', how='left')
-  return summary.BID
+  bids = aids.merge(lookup, on='AID', how='left').BID
+  return bids
 
 def recommend_books_by_item( user, thres=4.0, n=5 ):
   bids = all_book_ratings[all_book_ratings.UID == user]
@@ -300,9 +267,9 @@ def recommend_books_by_item( user, thres=4.0, n=5 ):
   for i in range(bids.shape[0]):
     result += (book_model.similar_items(bids[i], N=n, react_users=csr.transpose()))
   result = [x for x,_ in result]
-  result = pd.Series(result)
-  result.name = 'BID'
-  return result
+  bids = pd.Series(result)
+  bids.name = 'BID'
+  return bids
 
 def recommend_books_by_item_cosine( user, thres=4.0, n_similar=5 ):
   user_ratings = all_book_ratings[all_book_ratings.UID == user]
@@ -310,10 +277,10 @@ def recommend_books_by_item_cosine( user, thres=4.0, n_similar=5 ):
   csr = get_books_csr().transpose()
   similarities = pd.DataFrame(cosine_similarity(csr, csr[top_ratings.BID]))
 
-  ids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
-  ids = pd.Series(ids.flatten(), name='BID')
+  bids = np.argpartition(np.array(similarities), kth=-n_similar, axis=0)[-n_similar:]
+  bids = pd.Series(bids.flatten(), name='BID')
 
-  return ids
+  return bids
 
 def recommend_books_by_user( user, thres=4.0, n=5 ):
   uids_tuples = book_model.similar_users(user, n)
