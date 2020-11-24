@@ -17,17 +17,18 @@
     try {
       $result = $link->query($sql);
       if($result->num_rows != 0) {
+        http_response_code(401);
         throw new Exception('Username already exists.');
       }
       
-      $sql = "SHOW TABLE STATUS LIKE 'users'";
+      $sql = "SELECT COUNT(*) FROM users";
       $result = mysqli_fetch_array($link->query($sql));
-      $UID = $result['Rows'];
+      $UID = $result['COUNT(*)'];
       
       $sql = "INSERT INTO users VALUES($UID, '$usr', SHA('$pwd'))";
       $link->query($sql);
 
-      echo "Registration successful.";
+      echo "Registration successful for UID $UID.";
 
     } catch(Exception $e) {
       exit($e->getMessage());

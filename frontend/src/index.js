@@ -34,7 +34,10 @@ function Recommender({popular, onload}) {
         console.log("Authors:");
         console.log(arr.slice(2));
       }
-      setFocusedId('recommendation');
+      if(ratings == null)
+        setFocusedId('search');
+      else
+        setFocusedId('recommendation');
     })
   }
 
@@ -221,30 +224,52 @@ function Search({username, onSummary, focusedId}) {
   const id = 'search';
   const listId = 'searchlist';
   const [content, setContent] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [header, setHeader] = useState('Book Search');
   const [subtitle, setSubtitle] = useState('Find books to rate');
 
   const makeQuery = async() => {
     let querytext = document.getElementById('querytext');
-    console.log(querytext.value);
-    let postobj = {tok: querytext.value, usr: username}
-    let reply = await axios.post('search.php', postobj);
-    setContent(makeSlice(reply.data));
+    if(querytext.value != '') {
+      let postobj = {tok: querytext.value, usr: username}
+      setIsLoading(true);
+      let reply = await axios.post('search.php', postobj);
+      if(reply.data.length > 0)
+        setContent(makeSlice(reply.data));
+      setIsLoading(false);
+    }
   }
+
+  const onExit = () => {
+    setContent(null);
+  }
+
+  useEffect(() => {
+    if(content == null) {
+      document.getElementById('querytext').value = '';
+    }
+
+    if(username == null) {
+      setContent(null);
+    }
+  }, [username, content])
 
   let html;
   if(content != null) {
     html =
       <div id={id} class='container-fluid align-items-center' style={{display: focusedId == id? 'block' : 'none'}}>
         <Header header={header} subtitle={subtitle}></Header>
-        <Carousel content={content} id={listId} onSummary={onSummary}/>
+        <div>
+          <div class='exitBtn m-0 p-0' onClick={onExit} style={{position: 'absolute', fontFamily: 'fairy', fontSize: '36px', top: '22.5%', left: '82.5%', zIndex: 10}}>X</div>
+          <Carousel content={content} id={listId} onSummary={onSummary}/>
+        </div>
       </div>
   } else {
     html = 
       <div id={id} class='container-fluid justify-content-center' style={{display: focusedId == id? 'block' : 'none'}}>
         <Header header={header} subtitle={subtitle}></Header>
-        <div class='row'>
+        <div class='row' style={{pointerEvents: isLoading? 'none' : 'all'}}>
           <div class='col-3'></div>
           <div class='col-6 pt-5 mt-5 justify-self-center'>
             <div class='row justify-content-center'>
@@ -295,7 +320,7 @@ function BookModal({book, onSummary}) {
                 justifyContent: 'center',
                 flexDirection: 'row', justifyContent: 'right', alignItems: 'center',
                 position: 'fixed'}}>
-      <div class='p-0 m-0' id='modalexit' style={{position: "absolute", top: 0, right: 0, fontSize: '36px'}} onClick={exit}>X</div>
+      <div class='p-0 m-0 exitBtn' style={{position: "absolute", top: 0, right: 0, fontSize: '36px'}} onClick={exit}>X</div>
       <div><img src={book.ImageURLL} class='p-2' style={{border: '1px solid white'}}></img></div>
         {stringContent}
     </div>;
