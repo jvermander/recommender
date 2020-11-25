@@ -340,6 +340,14 @@ html {
   z-index: 1000;
 }
 
+#trainText {
+  font-family: fairy;
+  position: relative;
+  right: 25%;
+  font-size: 20px;
+  transition: opacity 10s linear;
+}
+
 .loadingScreenText {
   color: white;
   font-size: 64px;
@@ -357,4 +365,15 @@ html {
   background-image: url('assets/bricks.jpg');
   /* background-repeat: no-repeat; */
   /* background-attachment: fixed; */
+}
+
+.star {
+  height: 2rem;
+  width: 2rem;
+  content: url('assets/starempty.png');
+  user-select: none;
+}
+
+.staractive {
+  content: url('assets/starfull.png');
 }

@@ -27,7 +27,7 @@ def get_most_popular( path='models/impALS/avg.csv', n=5, m=50 ):
   ratings = ratings.iloc[random.sample(range(0, m), n)]
   ratings = ratings.merge(book_lookup, on='BID', how='left')
   ratings = ratings.merge(auth_lookup, on='AID', how='left')
-  ratings.drop(columns=['AID', 'BID', 'Score', 'Total'], inplace=True)
+  ratings.drop(columns=['Score', 'Total'], inplace=True)
   print("[" + ratings.to_json(orient='records') + "]")
 
 def calc_avg_ratings( path='models/impALS/avg.csv' ):

@@ -7,9 +7,13 @@ function Recommender({popular, onload}) {
   const [username, setUsername] = useState(null);
   const [recommendations, setRecommendations] = useState(popular);
   const [ratings, setRatings] = useState(null);
+  const [sessionRatings, setSessionRatings] = useState(0);
+  const [isTraining, setIsTraining] = useState(null);
 
   const [focusedId, setFocusedId] = useState('landing');
   const [focusedBook, setFocusedBook] = useState(null);
+
+  const TRAIN_THRESHOLD = 1;
 
   const onLogin = (username, arr) => {
     contentTransition(() => {
@@ -25,6 +29,9 @@ function Recommender({popular, onload}) {
       if(arr.length > 0) {
         console.log("Ratings: ");
         console.log(arr[0])
+        setFocusedId('recommendation');
+      } else {
+        setFocusedId('search');
       }
       if(arr.length > 1) {
         console.log("Recommendations:");
@@ -34,10 +41,6 @@ function Recommender({popular, onload}) {
         console.log("Authors:");
         console.log(arr.slice(2));
       }
-      if(ratings == null)
-        setFocusedId('search');
-      else
-        setFocusedId('recommendation');
     })
   }
 
@@ -47,8 +50,23 @@ function Recommender({popular, onload}) {
       setIsLogged(false);
       setRecommendations(popular);
       setRatings(null);
+      setSessionRatings(0);
       setFocusedId('landing');
     });
+  }
+
+  const onRate = async(book) => {
+    // update the client
+    let temp = [...ratings];
+    temp.push(book);
+    setRatings(temp);
+
+    // update the server
+    let postobj = {usr: username, rating: JSON.stringify(book)};
+    let reply = await axios.post('rate.php', postobj).then((reply)=>{
+      setSessionRatings(sessionRatings+1);
+    });
+
   }
 
   const onSummary = (book) => {
@@ -95,19 +113,36 @@ function Recommender({popular, onload}) {
     }, 500)
   }, [focusedId])
 
+  useEffect(async() => {
+    if(sessionRatings == TRAIN_THRESHOLD) {
+      console.log('Re-training model...');
+      setIsTraining(true);
+      let reply = await axios.post('retrain.php', {usr: username}).then((reply) => {
+        let arr = reply.data;
+        console.log(arr);
+        if(arr.length > 0)
+          setRatings(arr[0])
+        if(arr.length > 1)
+          setRecommendations(arr.slice(1));
+        setSessionRatings(0);
+        setIsTraining(false);
+      });
+    }
+  }, [sessionRatings]);
+
   useEffect(() => {
     onload();
   }, []);
 
   return(
     <div class='container-fluid text-center p-0 m-0'>
-      <Navbar onLogin={onLogin} onLogout={onLogout} toRatings={toRatings} toRecommendation={toRecommendation} toSearch={toSearch}/>
+      <Navbar isTraining={isTraining} onLogin={onLogin} onLogout={onLogout} toRatings={toRatings} toRecommendation={toRecommendation} toSearch={toSearch}/>
       <Landing popular={popular} onSummary={onSummary} focusedId={focusedId}/>
       <Recommendation recommendations={recommendations} username={username} hasRated={ratings != null} onSummary={onSummary} focusedId={focusedId}/>
       <Ratings ratings={ratings} onSummary={onSummary} focusedId={focusedId}/>
       <Search username={username} onSummary={onSummary} focusedId={focusedId}/>
       <Footer/>
-      <BookModal book={focusedBook} onSummary={onSummary}/>
+      <BookModal book={focusedBook} isLogged={isLogged} onSummary={onSummary} onRate={onRate}/>
     </div>
   );
 }
@@ -202,7 +237,7 @@ function Ratings({ratings, onSummary, focusedId}) {
   const [content, setContent] = useState(null);
 
   useEffect(() => {
-    if(ratings != null)
+    if(ratings != null) 
       setContent(makeSlice(ratings));
     else
       setContent(null);
@@ -235,6 +270,7 @@ function Search({username, onSummary, focusedId}) {
       let postobj = {tok: querytext.value, usr: username}
       setIsLoading(true);
       let reply = await axios.post('search.php', postobj);
+      console.log(reply.data);
       if(reply.data.length > 0)
         setContent(makeSlice(reply.data));
       setIsLoading(false);
@@ -297,15 +333,79 @@ function Header({header, subtitle}) {
   );
 }
 
-function BookModal({book, onSummary}) {
+function BookModal({book, isLogged, onSummary, onRate}) {
+  const [rating, setRating] = useState(0);
+  const [existing, setExisting] = useState(false);
+
   const exit = (event) => {
-      onSummary(null);
+    if(rating != 0 && !existing) {
+      book.Score = rating;
+      onRate(book);
+    }
+    onSummary(null);
   }
+
+  const starOnClick = (event) => {
+    event.preventDefault();
+    let id = event.target.id;
+    setRating(id != rating? id : 0);
+  }
+
+  useEffect(() => {
+    if(book != null && 'Score' in book && book.Score != null) {
+      console.log(Math.round(book.Score));
+      setRating(Math.round(book.Score));
+      setExisting(true);
+    } else {
+      setRating(0);
+      setExisting(false);
+    }
+  }, [book]);
+
+  useEffect(() => {
+    if(rating != 0) {
+      let element = document.getElementById(rating);
+      let current = element;
+      while(current != null) {
+        current.classList.add('staractive');
+        current = current.previousSibling;
+      }
+      current = element.nextSibling;
+      while(current != null) {
+        current.classList.remove('staractive');
+        current = current.nextSibling;
+      }
+    } else {
+      let element = document.getElementById(1);
+      let current = element;
+      while(current != null) {
+        current.classList.remove('staractive');
+        current = current.nextSibling;
+      }
+    }
+    
+    if(book != null) {
+      let desc = document.getElementById('ratingdesc');
+      if(rating == 0) {
+        desc.innerHTML = 'You haven\'t rated this book yet';
+      } else if(rating == 1) {
+        desc.innerHTML = 'Your rating - Terrible';
+      } else if(rating == 2) {
+        desc.innerHTML = 'Your rating - Poor';
+      } else if(rating == 3) {
+        desc.innerHTML = 'Your rating - Average';
+      } else if(rating == 4) {
+        desc.innerHTML = 'Your rating - Good';
+      } else if(rating == 5) {
+        desc.innerHTML = 'Your rating - Amazing';
+      }
+    }
+  }, [rating]);
 
   let modal = null;
   if(book != null) {
     let stringContent = 
-    <div class="modalText" style={{fontSize: '26px', fontFamily: 'fairy', lineHeight: '2em', }}>
+    <div class="modalText" style={{fontSize: '26px', fontFamily: 'fairy', lineHeight: '2em'}}>
     <div><span>Title</span> • <span>{book.Title}</span></div>
     <div><span>Author</span> • <span>{book.Author}</span></div>
     <div><span>Year Published</span> • <span>{book.YearPublished}</span></div>
@@ -321,11 +421,26 @@ function BookModal({book, onSummary}) {
                 flexDirection: 'row', justifyContent: 'right', alignItems: 'center',
                 position: 'fixed'}}>
       <div class='p-0 m-0 exitBtn' style={{position: "absolute", top: 0, right: 0, fontSize: '36px'}} onClick={exit}>X</div>
-      <div><img src={book.ImageURLL} class='p-2' style={{border: '1px solid white'}}></img></div>
-        {stringContent}
+      <div class='p-0 m-0 floating searchBtn' style={{position: "absolute", bottom: 0, right: 0, fontSize: '40px'}}>Purchase Now &gt;&gt;</div>
+      <div>
+        <div class='row'>
+          <img src={book.ImageURLL} class='p-2' style={{border: '1px solid white'}}></img>
+        </div>
+        <div style={{display: isLogged? 'block' : 'none'}}>
+          <div id='ratingdesc' class='row justify-content-center fancy' style={{fontSize: '24px'}}>You haven't rated this book yet</div>
+          <div class='row justify-content-center'>
+            <div class='star' id='1' onClick={existing? null : starOnClick}></div>
+            <div class='star' id='2' onClick={existing? null : starOnClick}></div>
+            <div class='star' id='3' onClick={existing? null : starOnClick}></div>
+            <div class='star' id='4' onClick={existing? null : starOnClick}></div>
+            <div class='star' id='5' onClick={existing? null : starOnClick}></div>
+          </div>
+        </div>
+      </div>
+      {stringContent}
     </div>;
   }
-
+  
   return(
     <div id='bookModalBackground' 
       style={{
@@ -342,7 +457,7 @@ function BookModal({book, onSummary}) {
   );
 }
 
-function Navbar({onLogin, onLogout, toRatings, toRecommendation, toSearch}) {
+function Navbar({onLogin, onLogout, toRatings, toRecommendation, toSearch, isTraining}) {
   const [isLogged, setIsLogged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -448,6 +563,19 @@ function Navbar({onLogin, onLogout, toRatings, toRecommendation, toSearch}) {
     onLogout();
   }
 
+  var trainText;
+  if(isTraining == null) {
+    trainText = '';
+  } else if(isTraining) {
+    trainText = 'We are finding recommendations for you...';
+  } else if(!isTraining) {
+    trainText = 'You have new recommendations!';
+  }
+
+  useEffect(() => {
+    document.getElementById('trainText').style.opacity = isTraining? 1 : 0;
+  }, [isTraining]);
+
   var html;
   if(!isLogged) {
       html =
@@ -480,6 +608,7 @@ function Navbar({onLogin, onLogout, toRatings, toRecommendation, toSearch}) {
   return (
     <div class='navbar bar sticky-top p-2 mt-2 text-left'>
       <div class='col m-0 p-0'><a href="#"><img class='mx-2' height='auto' width='50px' src='assets/logo2.png'></img></a></div>
+      <div id='trainText' class='m-0 p-0' style={{animation: isTraining? 'flash 1.5s infinite':"none"}}>{trainText}</div>
       {html} 
     </div>);
 }

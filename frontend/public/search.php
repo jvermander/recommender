@@ -10,19 +10,19 @@
     
     $post = json_decode(file_get_contents('php://input'), true);
     $usr = $post['usr'];
-    $tok = $post['tok'];
+    $tok = mysqli_real_escape_string($link, $post['tok']);
     
     $sql = "SELECT UID FROM users WHERE usr='$usr'";
     $result = $link->query($sql);
     $uid = mysqli_fetch_assoc($result)['UID'];
     
-    $sql = "SELECT Title, Author, ISBN, YearPublished, Publisher, ImageURLL, Score
+    $sql = "SELECT Title, Author, ISBN, YearPublished, Publisher, ImageURLL, A.BID, A.AID, Score
             FROM ( SELECT BID, books.AID, ISBN, Title, Author, YearPublished, Publisher, ImageURLL
                    FROM books 
                    JOIN authors ON books.AID=authors.AID 
                    WHERE Title LIKE '%$tok%' OR Author LIKE '%$tok%' OR ISBN LIKE '$tok') AS A
             LEFT JOIN 
-                 ( SELECT * 
+                 ( SELECT BID, Score 
                    FROM bookratings 
                    WHERE bookratings.UID=$uid) AS B
               ON A.BID=B.BID";

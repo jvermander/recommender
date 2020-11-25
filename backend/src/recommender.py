@@ -31,8 +31,12 @@ def main( argv ):
     print('Usage: %s <user_id> <train>' % argv[0])
     exit()
 
+  oldstdout = sys.stdout
+  sys.stdout = open(os.devnull, "w")
+  sys.stderr = open(os.devnull, "w")
   train_model() if train else load_model()
   json = recommend_for(user)
+  sys.stdout = oldstdout
   print(json)
 
 def load_data():
@@ -46,7 +50,6 @@ def load_data():
       password=config['database']['pwd'],
       database=config['database']['name']
     )
-    print('Successfully established a connection.')
   except Exception as e:
     print('Failed to establish a database connection.')
     print(e)
@@ -69,7 +72,6 @@ def load_data():
     user_lookup = pd.read_sql(query, dbconn)
 
     dbconn.close()
-    print('Successfully loaded data.')
   except Exception as e:
     print('Failed to fetch data.')
     print(e)
@@ -155,7 +157,7 @@ def recommend_for( user, n=5 ):
   return json
 
 def to_json( ratings, books, authors ):
-  columns = ['Title', 'Author', 'ISBN', 'Publisher', 'YearPublished', 'ImageURLL']
+  columns = ['Title', 'Author', 'ISBN', 'Publisher', 'YearPublished', 'ImageURLL', 'AID', 'BID']
 
   ratings = ratings[columns + ['Score']].to_json(orient='records')
   books = books[columns].to_json(orient='records')
