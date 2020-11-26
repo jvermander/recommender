@@ -13,7 +13,7 @@ function Recommender({popular, onload}) {
   const [focusedId, setFocusedId] = useState('landing');
   const [focusedBook, setFocusedBook] = useState(null);
 
-  const TRAIN_THRESHOLD = 1;
+  const TRAIN_THRESHOLD = 5;
 
   const onLogin = (username, arr) => {
     contentTransition(() => {
@@ -608,7 +608,7 @@ function Navbar({onLogin, onLogout, toRatings, toRecommendation, toSearch, isTra
   return (
     <div class='navbar bar sticky-top p-2 mt-2 text-left'>
       <div class='col m-0 p-0'><a href="#"><img class='mx-2' height='auto' width='50px' src='assets/logo2.png'></img></a></div>
-      <div id='trainText' class='m-0 p-0' style={{animation: isTraining? 'flash 1.5s infinite':"none"}}>{trainText}</div>
+      <div id='trainText' class='m-0 p-0' style={{color: isTraining? 'white' : 'cyan', animation: isTraining? 'flash 1.5s infinite':"none"}}>{trainText}</div>
       {html} 
     </div>);
 }
@@ -776,7 +776,7 @@ function Footer() {
       <div class={className}>
         <div class='col p-0 m-0'>Author: Joe Vermander</div>
         <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
-        <div class='col p-0 m-0'>E-mail: jlvermander@gmail.com</div>
+        <div class='col p-0 m-0'>E-mail: vermander1@protonmail.com</div>
         <div class='divider text-center p-0 m-0' style={{fontSize: '2em'}}>-</div>
         <div class='col'>GitHub: https://github.com/jvermander</div>
       </div>
