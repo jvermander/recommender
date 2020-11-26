@@ -1,6 +1,6 @@
 <b> Need something new to read? </b>
 -
-<p>This web application helps users to find books within their realm of interest, after the user rates a few books they've already read! If you only want to see a visual demonstration, please feel free to skip the following jargon and scroll down to the <b> Visual Demonstration </b> section to view some GIFs.</p>
+<p>This web application helps users to find books within their realm of interest, after the user rates a few books they've already read! If you only want to see a brief visual demonstration, please feel free to skip the following jargon and scroll down to the <b> Visual Demonstration </b> section to view a GIF.</p>
 
 
 Note -- This repository does not contain all the necessary files to run the application, as some are much too large to store on GitHub! It merely contains all files that I've hand written (i.e. the source code), and is simply a means for me to demonstrate how the application runs. In the visual demonstration, I run the application on a Debian Linux operating system, with a Firefox client browser, Apache webserver and a MariaDB (MySQL) database. A classic LAMP setup!
@@ -49,22 +49,35 @@ The style is quite minimalist, and the focal point is a simple carousel in the c
   - Upon successful registration, the user is automatically logged in, just for simplicity.
   - Upon login, the user is greeted either with a welcome, or a search bar, depending whether or not they have any existing ratings.
   - Upon logout, the user is returned to the initial landing screen, full of generic recommendations.
+  ![](gifs/navbar.gif)
 
 - Search bar
   - A user can search a dataset containing over 270,000 books and almost 100,000 authors, by book title, author name, or ISBN.
   - Protects against malformed input.
   - Results are then displayed in a carousel; books that the user has already read are not filtered.
   - The user can simply a corner exit button to reset the search.
-  
+  ![](gifs/search.gif)
+
+
 - 'My Ratings' list
   - Users can track what they've already read and view it on the carousel by clicking the 'My Ratings' button on the nav-bar.
   - All previous ratings given are shown.
-  
+  ![](gifs/ratings.gif)
+
 - 'My Recommendations' list
   - Comprised of two components: what similar users are reading, and recommended authors.
   - What similar users are reading is a list of books that the system deems as highly likely to be of interest, regardless of author.
   - A list authors is also recommended, and a list of the most highly scored books for each author is present to the user.
+  ![](gifs/recommend.gif)
 
 <b> Visual Demonstration </b>
 -
 Note: The dataset used here is fairly old, and does not seem to contain any books published past 2005.
+
+<b> Suppose the user, Sauron123, is a fantasy lover. </b>
+Let's see what he'll rate, followed by what he'll be offered as recommendation by the system.
+
+![](gifs/fantasy.gif)
+
+Here is a look at his sample recommendations.
+![](gifs/fantasy2.gif)

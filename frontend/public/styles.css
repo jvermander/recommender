@@ -5,7 +5,7 @@ html {
  .tooltiptext {
   visibility: hidden;
   width: 100%;
-  background-color: rgba(200, 0, 0, 0.5);
+  background-color: rgba(150, 0, 0);
   color: #fff;
   text-align: center;
   padding: 5px;

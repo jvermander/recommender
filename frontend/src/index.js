@@ -13,7 +13,7 @@ function Recommender({popular, onload}) {
   const [focusedId, setFocusedId] = useState('landing');
   const [focusedBook, setFocusedBook] = useState(null);
 
-  const TRAIN_THRESHOLD = 5;
+  const TRAIN_THRESHOLD = 3;
 
   const onLogin = (username, arr) => {
     contentTransition(() => {
@@ -50,6 +50,7 @@ function Recommender({popular, onload}) {
       setIsLogged(false);
       setRecommendations(popular);
       setRatings(null);
+      setIsTraining(null);
       setSessionRatings(0);
       setFocusedId('landing');
     });
@@ -57,14 +58,21 @@ function Recommender({popular, onload}) {
 
   const onRate = async(book) => {
     // update the client
-    let temp = [...ratings];
-    temp.push(book);
+    let temp;
+    if(ratings != null) {
+      temp = [...ratings];
+      temp.push(book);
+    } else {
+      temp = [];
+      temp.push(book);
+    }
     setRatings(temp);
 
     // update the server
     let postobj = {usr: username, rating: JSON.stringify(book)};
     let reply = await axios.post('rate.php', postobj).then((reply)=>{
-      setSessionRatings(sessionRatings+1);
+      if(isTraining == null || !isTraining)
+        setSessionRatings(sessionRatings+1);
     });
 
   }
@@ -116,15 +124,13 @@ function Recommender({popular, onload}) {
   useEffect(async() => {
     if(sessionRatings == TRAIN_THRESHOLD) {
       console.log('Re-training model...');
+      setSessionRatings(0);
       setIsTraining(true);
       let reply = await axios.post('retrain.php', {usr: username}).then((reply) => {
         let arr = reply.data;
         console.log(arr);
-        if(arr.length > 0)
-          setRatings(arr[0])
         if(arr.length > 1)
           setRecommendations(arr.slice(1));
-        setSessionRatings(0);
         setIsTraining(false);
       });
     }
