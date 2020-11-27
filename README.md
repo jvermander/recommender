@@ -39,7 +39,7 @@ The style is quite minimalist, and the focal point is a simple carousel in the c
   - Passively shows a 'loading message' indicating that the model is being asynchronously re-trained and recommendations will appear soon.
 
 - Loading and landing screens
-  - What a user initially sees are unpersonalized generic recommendations of popular items.
+  - What a user initially sees are impersonal, generic recommendations of popular items.
   - These are randomized on the server, and thus the client needs a bit of time to receive a reply. This is hidden with a very brief loading/splash screen.
   ![](gifs/landing.gif)
   
