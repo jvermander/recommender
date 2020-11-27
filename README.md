@@ -31,12 +31,12 @@ For execution speed, the most up-to-date model is cached for quick recommendatio
 -
 A web-exclusive application, written in ReactJS (hooks!) and partially with Bootstrap 4 on the client, along with PHP on the server-side, I designed this frontend mostly with flashiness and fun in mind first, and usability second. The choice to do so is not out of necessity! I could've built a more traditional, boring user-interface, but I figure doing something out of the box would be a bit more interesting and useful to show off what I can do. As a result, while I originally planned to keep mostly to a CSS framework like Bootstrap, I gradually used my own code as these frameworks are too restrictive for what I wanted to do.
 
-The style is quite minimalist, and the focal point is a simple carousel in the center of the screen. The user can manipulate what is being displaying on the carousel, via buttons on the navigation bar. A carousel was used for all information simply to re-use code. The user-interface has several utilities, including:
+The style is quite minimalist, and the focal point is a simple carousel in the center of the screen. The user can manipulate what is being displayed on the carousel, via buttons on the navigation bar. A carousel was used for all information simply to re-use code. The user-interface has several utilities, including:
 
 - Navigation bar
   - The user's main tool to manipulate what is shown on screen.
   - Buttons differ depending on if the user is logged in or logged out.
-  - Passively shows a 'loading message' indicating that the model is being asynchronously re-trained and recommendations will appear soon. Upon completion, the user is notified and the recommendations are updated.
+  - Passively shows a 'loading message' indicating that the model is being asynchronously re-trained and recommendations will appear soon.
 
 - Loading and landing screens
   - What a user initially sees are unpersonalized generic recommendations of popular items.
@@ -55,24 +55,24 @@ The style is quite minimalist, and the focal point is a simple carousel in the c
   - A user can search a dataset containing over 270,000 books and almost 100,000 authors, by book title, author name, or ISBN.
   - Protects against malformed input.
   - Results are then displayed in a carousel; books that the user has already read are not filtered.
-  - The user can simply a corner exit button to reset the search.
+  - The user can simply click a corner exit button to reset the search.
   ![](gifs/search.gif)
 
 
 - 'My Ratings' list
   - Users can track what they've already read and view it on the carousel by clicking the 'My Ratings' button on the nav-bar.
-  - All previous ratings given are shown.
   ![](gifs/ratings.gif)
 
 - 'My Recommendations' list
   - Comprised of two components: what similar users are reading, and recommended authors.
-  - What similar users are reading is a list of books that the system deems as highly likely to be of interest, regardless of author.
-  - A list authors is also recommended, and a list of the most highly scored books for each author is present to the user.
+  - 'What similar users are reading' is a list of books that the system deems as highly likely to be of interest, regardless of author.
+  - A list of authors is also recommended, and a list of the most highly scored books for each author is presented to the user.
   ![](gifs/recommend.gif)
 
 <b> Visual Demonstration </b>
 -
-Note: The dataset used here is fairly old, and does not seem to contain any books published past 2005.
+Note: The dataset used here is fairly old, and does not seem to contain any books published past 2005. 
+Additionally, any books with identical covers are guaranteed to have unique ISBNs (i.e. they are considered unique products sold at retailers).
 
 <b> Suppose the user, Sauron123, is a fantasy lover. </b>
 Let's see what he'll rate, followed by what he'll be offered as recommendation by the system.
