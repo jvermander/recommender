@@ -73,6 +73,7 @@ The style is quite minimalist, and the focal point is a simple carousel in the c
 -
 Note: The dataset used here is fairly old, and does not seem to contain any books published past 2005. 
 Additionally, any books with identical covers are guaranteed to have unique ISBNs (i.e. they are considered unique products sold at retailers).
+Finally, please note that the GIFs shown are of significantly lower quality the actual website; these GIFs are of much lower color quality and framerate.
 
 <b> Suppose the user, Sauron123, is a fantasy lover. </b>
 Let's see what he'll rate, followed by what he'll be offered as recommendation by the system.
